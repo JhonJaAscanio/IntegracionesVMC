@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Revisión física y eléctrica{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Revisión física y eléctrica</h1><p class="muted">Inspección por sesión. Los resultados se editan en la ficha de cada visita.</p></div>
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>Por sesión</h2></div>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Sesión</th><th>Cliente</th><th class="num">Ítems</th>{% for e in cat.estados %}<th class="num">{{ e }}</th>{% endfor %}<th></th></tr></thead>
+    <tbody>
+    {% for sid, r in summary.items() %}
+      <tr>
+        <td class="mono"><a href="{{ url_for('main.visita', sid=sid, tab='revision') }}">{{ sid }}</a></td>
+        <td class="truncate">{{ r.sesion.cliente or '—' }}</td>
+        <td class="num">{{ r.total or '—' }}</td>
+        {% for e in cat.estados %}<td class="num {{ 'tone-' ~ (e|estado_clase) if r.estados[e] }}">{{ r.estados[e] or '' }}</td>{% endfor %}
+        <td class="right"><a class="btn btn-sm" href="{{ url_for('main.visita', sid=sid, tab='revision') }}">{{ 'Abrir' if r.total else 'Iniciar' }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+<form class="filters" method="get">
+  <div class="field"><label for="r-res">Resultado</label><select id="r-res" name="resultado"><option value="">Todos</option>{% for o in cat.estados %}<option {{ 'selected' if f.resultado == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field grow"><label for="r-item">Ítem</label><select id="r-item" name="item"><option value="">Todos</option>{% for o in cat.item_revision %}<option {{ 'selected' if f.item == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="filters-actions"><button class="btn btn-primary btn-sm">Filtrar ítems</button>{% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.revision_lista') }}">Limpiar</a>{% endif %}</div>
+</form>
+{% if f %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Sesión</th><th>Ítem</th><th>Resultado</th><th>Observaciones</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td class="mono"><a href="{{ url_for('main.visita', sid=r.sesion_id, tab='revision') }}">{{ r.sesion_id }}</a></td><td>{{ r.item }}</td><td>{{ m.badge(r.resultado) }}</td><td class="small">{{ r.observaciones or '—' }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">Sin ítems para los filtros.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

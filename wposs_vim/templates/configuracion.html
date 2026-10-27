@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Configuración y respaldos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Configuración y respaldos</h1><p class="muted">Catálogos, criterios de cierre, respaldos y registro de operaciones.</p></div>
+</div>
+
+<div class="grid-2 align-start">
+  <section class="panel">
+    <div class="panel-head"><h2>Respaldos</h2>
+      <form method="post" action="{{ url_for('main.respaldo_crear') }}">{{ m.csrf() }}<button class="btn btn-primary btn-sm">Crear respaldo ahora</button></form>
+    </div>
+    <p class="muted small">Automático antes de escribir si el último tiene más de {{ config.respaldos.intervalo_minutos }} min. Se conservan {{ config.respaldos.retener }} automáticos; los manuales no se eliminan.</p>
+    {% if backups %}
+    <div class="table-wrap scroll-y">
+    <table class="table">
+      <thead><tr><th>Archivo</th><th>Tipo</th><th class="num">Tamaño</th><th></th></tr></thead>
+      <tbody>
+      {% for b in backups %}
+        <tr>
+          <td class="small"><span class="mono">{{ b.nombre }}</span><div class="muted">{{ b.fecha }}</div></td>
+          <td class="small">{{ b.tipo|replace('_', ' ') }}</td>
+          <td class="num small">{{ b.tamano|tamano }}</td>
+          <td class="nowrap right">
+            <a class="btn-icon" href="{{ url_for('main.respaldo_descargar', name=b.nombre) }}" title="Descargar"><svg class="i"><use href="#i-download"/></svg></a>
+            <form method="post" action="{{ url_for('main.respaldo_restaurar') }}" class="inline" data-confirm="Se validará {{ b.nombre }} y reemplazará el libro de trabajo actual. Antes se guardará un respaldo del estado actual. ¿Restaurar?">
+              {{ m.csrf() }}<input type="hidden" name="nombre" value="{{ b.nombre }}"><input type="hidden" name="confirmar" value="si">
+              <button class="btn btn-sm">Restaurar</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="muted">Aún no hay respaldos.</p>{% endif %}
+    <p class="muted small">Las evidencias (data/evidencias) no se incluyen en el respaldo del libro; cópielas aparte.</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Catálogos</h2></div>
+    <p class="muted small">Se guardan en la hoja “Listas” y alimentan las listas desplegables de la app y de Excel. Estados, estados de incidencia y conceptos están fijos porque los cálculos del cierre dependen de ellos.</p>
+    <form method="post" action="{{ url_for('main.catalogo_agregar') }}" class="inline-form">
+      {{ m.csrf() }}
+      <select name="catalogo" aria-label="Catálogo">{% for key, label in editable %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select>
+      <input name="valor" placeholder="Nuevo valor" maxlength="200" required aria-label="Nuevo valor">
+      <button class="btn btn-sm">Agregar</button>
+    </form>
+    <div class="catalogs">
+      {% for key, label in S.CATALOGS %}
+      <details class="more"><summary>{{ label }} <span class="count">{{ cat[key]|length }}</span></summary>
+        <ul class="chips">{% for v in cat[key] %}<li>{{ v }}</li>{% endfor %}</ul></details>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Criterios y preferencias</h2></div>
+  <form method="post" action="{{ url_for('main.ajustes') }}" class="form">
+    {{ m.csrf() }}
+    <div class="grid-2 align-start">
+      <fieldset>
+        <legend>Para declarar “Apto para piloto” se requiere</legend>
+        {% for key, label in [('apto_requiere_cero_fallidas', 'Ninguna prueba fallida'), ('apto_requiere_cero_bloqueadas', 'Ninguna prueba bloqueada'), ('apto_requiere_cero_pendientes', 'Ninguna prueba pendiente'), ('apto_requiere_cero_incidencias_abiertas', 'Ninguna incidencia abierta'), ('apto_requiere_revision_fisica_sin_fallos', 'Revisión física completa sin fallos'), ('condiciones_requiere_pendientes_documentados', '“Apto con condiciones” exige documentar los pendientes')] %}
+        <label class="check"><input type="checkbox" name="{{ key }}" {{ 'checked' if config.cierre[key] }}> {{ label }}</label>
+        {% endfor %}
+        <p class="muted small">Componentes críticos (deben tener al menos una prueba aprobada):</p>
+        {% for c in cat.componente %}<label class="check"><input type="checkbox" name="componentes_criticos" value="{{ c }}" {{ 'checked' if c in config.cierre.componentes_criticos }}> {{ c }}</label>{% endfor %}
+        <p class="note small">El libro original no define criterios de salida (pregunta abierta en “Instrucciones”). Confirme estos valores con el equipo WPOSS.</p>
+      </fieldset>
+      <fieldset>
+        <legend>Datos y respaldos</legend>
+        <label class="check"><input type="checkbox" name="excluir_ejemplos" {{ 'checked' if config.datos.excluir_ejemplos }}> Excluir filas “de ejemplo” de indicadores y totales</label>
+        <label class="check"><input type="checkbox" name="exigir_evidencia_para_aprobar" {{ 'checked' if config.pruebas.exigir_evidencia_para_aprobar }}> Exigir evidencia adjunta para marcar una prueba como Aprobada</label>
+        <div class="form-grid">
+          <div class="field"><label for="c-ret">Respaldos automáticos a conservar</label><input id="c-ret" type="number" name="retener" min="1" max="1000" value="{{ config.respaldos.retener }}"></div>
+          <div class="field"><label for="c-int">Intervalo de respaldo (minutos)</label><input id="c-int" type="number" name="intervalo" min="5" max="10080" value="{{ config.respaldos.intervalo_minutos }}"></div>
+        </div>
+      </fieldset>
+    </div>
+    <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">Guardar configuración</button></div>
+  </form>
+</section>
+
+{% if pending %}
+<section class="panel">
+  <div class="panel-head"><h2>Cambios pendientes de escribir</h2>
+    <form method="post" action="{{ url_for('main.pendientes_reintentar') }}">{{ m.csrf() }}<input type="hidden" name="volver" value="{{ url_for('main.configuracion') }}"><button class="btn btn-primary btn-sm">Reintentar ahora</button></form></div>
+  <ul class="owners">{% for p in pending %}<li><span class="muted small">{{ p.creado }}</span> {{ p.descripcion }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="panel-head"><h2>Ubicación de los datos</h2></div>
+  <dl class="kv small">
+    <dt>Libro original (solo lectura)</dt><dd class="mono">{{ paths.original }}</dd>
+    <dt>Copia íntegra del original</dt><dd class="mono">{{ paths.original_copia }}</dd>
+    <dt>Libro de trabajo</dt><dd class="mono">{{ paths.trabajo }}</dd>
+    <dt>Evidencias</dt><dd class="mono">{{ paths.evidencias }}</dd>
+    <dt>Respaldos</dt><dd class="mono">{{ paths.respaldos }}</dd>
+    <dt>Logs</dt><dd class="mono">{{ paths.logs }}</dd>
+  </dl>
+  <details class="more"><summary>Últimas entradas del registro</summary><pre class="log">{% for line in log_tail %}{{ line }}{% endfor %}</pre></details>
+</section>
+{% endblock %}

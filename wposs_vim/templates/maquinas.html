@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Máquinas registradas{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Máquinas registradas</h1><p class="muted">Modelos de máquina con sus visitas. Los resultados no se generalizan a otros modelos.</p></div>
+</div>
+{% if groups %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Fabricante</th><th>Modelo</th><th>Seriales</th><th>Firmware probados</th><th class="num">Visitas</th><th>Última visita</th><th>Último estado</th><th></th></tr></thead>
+  <tbody>
+  {% for g in groups %}
+    <tr>
+      <td>{{ g.fabricante }}</td>
+      <td>{{ g.modelo }}</td>
+      <td class="mono small">{{ g.seriales|join(', ') or '—' }}</td>
+      <td class="mono small">{{ g.firmwares|join(', ') or '—' }}</td>
+      <td class="num">{{ g.sesiones|length }}</td>
+      <td class="nowrap"><a class="mono" href="{{ url_for('main.visita', sid=g.ultima.sesion_id) }}">{{ g.ultima.sesion_id }}</a> <span class="muted small">{{ g.ultima.fecha }}</span></td>
+      <td>{{ m.badge(g.ultima.estado_integracion) }}</td>
+      <td class="right"><a class="btn btn-sm" href="{{ url_for('main.visitas', fabricante=g.fabricante if g.fabricante != 'Sin fabricante' else None, modelo_maquina=g.modelo if g.modelo != 'Sin modelo' else None, orden='fecha', dir='desc') }}">Historial</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  {{ m.empty('Sin máquinas', 'Las máquinas aparecen al registrar visitas.', url_for('main.visita_nueva'), 'Nueva visita') }}
+{% endif %}
+{% endblock %}

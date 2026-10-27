@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ 'Incidencia ' ~ inc.id if inc else 'Nueva incidencia' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if v.get('sesion_id') %}<a class="back" href="{{ url_for('main.visita', sid=v.get('sesion_id'), tab='incidencias') }}"><svg class="i"><use href="#i-back"/></svg>{{ v.get('sesion_id') }}</a>{% endif %}
+    <h1>{% if inc %}Incidencia <span class="mono">{{ inc.id }}</span> {{ m.badge(inc.estado) }}{% else %}Nueva incidencia{% endif %}</h1>
+    <p class="muted">{% if v.get('prueba_id') and not inc %}Datos precargados desde la prueba {{ v.get('prueba_id') }}.{% elif inc %}Sesión {{ inc.sesion_id }}{% else %}Registro de hallazgo con trazabilidad a la sesión y la prueba.{% endif %}</p>
+  </div>
+</div>
+
+<form method="post" class="form" novalidate>
+  {{ m.csrf() }}
+  <section class="form-section">
+    <h2>Hallazgo</h2>
+    <div class="form-grid">
+      {% if inc %}
+        <div class="field"><label>Sesión ID</label><input value="{{ inc.sesion_id }}" disabled></div>
+      {% else %}
+        <div class="field{{ ' has-error' if errors.get('sesion_id') }}">
+          {{ m.label('sesion_id', 'Sesión ID', True) }}
+          <select id="f-sesion_id" name="sesion_id" data-reload-on-change="sesion">
+            <option value="">Seleccione…</option>
+            {% for s in sesiones %}<option value="{{ s.sesion_id }}" {{ 'selected' if s.sesion_id == v.get('sesion_id') }}>{{ s.sesion_id }} · {{ s.cliente|truncate(40) }}</option>{% endfor %}
+          </select>
+          {{ m.err(errors, 'sesion_id') }}
+        </div>
+      {% endif %}
+      <div class="field{{ ' has-error' if errors.get('prueba_id') }}">
+        {{ m.label('prueba_id', 'Prueba asociada') }}
+        <select id="f-prueba_id" name="prueba_id">
+          <option value="">Sin prueba asociada</option>
+          {% for t in tests %}<option value="{{ t.id }}" {{ 'selected' if t.id == v.get('prueba_id') }}>{{ t.id }} · {{ t.estado or 'sin estado' }} · {{ t.objetivo|truncate(40) }}</option>{% endfor %}
+        </select>
+        {{ m.err(errors, 'prueba_id') }}
+      </div>
+      {{ m.input('fecha', 'Fecha', v, errors, type='date', required=True) }}
+      {{ m.input('componente_version', 'Componente y versión', v, errors, pc=True) }}
+      {{ m.textarea('descripcion', 'Descripción', v, errors, required=True, rows=2) }}
+      {{ m.textarea('pasos', 'Pasos para reproducir', v, errors, rows=3) }}
+      {{ m.textarea('resultado_esperado', 'Resultado esperado', v, errors, rows=2, wide=False) }}
+      {{ m.textarea('resultado_obtenido', 'Resultado obtenido', v, errors, rows=2, wide=False) }}
+    </div>
+  </section>
+  <section class="form-section">
+    <h2>Seguimiento</h2>
+    <div class="form-grid">
+      {{ m.select('severidad', 'Severidad / Prioridad', cat.severidad, v, errors, required=True) }}
+      {{ m.select('estado', 'Estado', cat.estado_incidencia, v, errors, required=True, help='Una incidencia solo se cierra manualmente.') }}
+      {{ m.input('responsable', 'Responsable', v, errors) }}
+      {{ m.input('ticket', 'Ticket', v, errors) }}
+      {{ m.input('siguiente_accion', 'Siguiente acción', v, errors, wide=True) }}
+      {{ m.textarea('resultado_reprueba', 'Resultado de la reprueba', v, errors, rows=2) }}
+    </div>
+    {% if inc %}<dl class="kv small"><dt>Evidencia</dt><dd>{{ m.evidence_links(inc.evidencia) }} <a class="link small" href="{{ url_for('main.visita', sid=inc.sesion_id, tab='evidencias') }}">Adjuntar</a></dd></dl>{% endif %}
+  </section>
+  <div class="form-actions sticky">
+    <div class="spacer"></div>
+    <button class="btn btn-primary">{{ 'Guardar cambios' if inc else 'Registrar incidencia' }}</button>
+  </div>
+</form>
+
+{% if inc %}
+<section class="panel">
+  <div class="panel-head"><h2>Historial de la incidencia</h2></div>
+  {% if history %}
+  <ol class="timeline">
+    {% for h in history|reverse %}
+    <li><span class="muted small nowrap">{{ h.fecha }}</span>
+      <div><strong>{{ h.accion }}</strong>{% if h.campo %} · {{ h.campo }}: <span class="muted">{{ h.anterior|truncate(80) or '—' }}</span> → {{ h.nuevo|truncate(80) or '—' }}{% endif %}</div></li>
+    {% endfor %}
+  </ol>
+  {% else %}<p class="muted">Sin cambios registrados por la aplicación.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

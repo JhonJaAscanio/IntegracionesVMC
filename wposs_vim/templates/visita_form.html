@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ 'Editar ' ~ sid if sid else 'Nueva visita' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if sid %}<a class="back" href="{{ url_for('main.visita', sid=sid) }}"><svg class="i"><use href="#i-back"/></svg>{{ sid }}</a>{% endif %}
+    <h1>{{ 'Editar identificación' if sid else 'Nueva visita' }}</h1>
+    <p class="muted">{% if sid %}Hoja “Identificación y Versiones”. Los cambios quedan en el historial.{% else %}El Sesión ID se asigna automáticamente al guardar. Puede guardar un borrador y completarlo después.{% endif %}</p>
+  </div>
+</div>
+
+<form method="post" class="form" data-stepper novalidate>
+  {{ m.csrf() }}
+  <ol class="steps" data-steps>
+    <li><button type="button" data-step-to="0"><span>1</span>Visita</button></li>
+    <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
+    <li><button type="button" data-step-to="2"><span>3</span>Versiones</button></li>
+    <li><button type="button" data-step-to="3"><span>4</span>Instalación y notas</button></li>
+  </ol>
+
+  <section class="form-section" data-step>
+    <h2>Datos de la visita</h2>
+    <div class="form-grid">
+      {{ m.input('fecha', 'Fecha', v, errors, type='date', required=True) }}
+      {{ m.input('hora', 'Hora', v, errors, type='time') }}
+      {{ m.input('responsable', 'Responsable', v, errors, required=True) }}
+      {{ m.input('cliente', 'Cliente / Piloto', v, errors, required=True, pc=True) }}
+      {{ m.select('pais', 'País', cat.pais, v, errors, help='Catálogo ampliable en Configuración.') }}
+      {{ m.input('ciudad', 'Ciudad', v, errors) }}
+      {{ m.select('tipo_prueba', 'Tipo de prueba', cat.tipo_prueba, v, errors, required=True) }}
+      {{ m.textarea('participantes', 'Participantes', v, errors, rows=2, help='Equipo WPOSS, cliente, técnico de la máquina…') }}
+      {{ m.textarea('objetivo', 'Objetivo de la sesión', v, errors, required=True, rows=2) }}
+    </div>
+  </section>
+
+  <section class="form-section" data-step>
+    <h2>Máquina y POS</h2>
+    <div class="form-grid">
+      {{ m.input('fabricante', 'Fabricante máquina', v, errors, required=True, list='dl-fabricantes', pc=True, help='Si es un fabricante nuevo se agrega al catálogo.') }}
+      {{ m.input('modelo_maquina', 'Modelo máquina', v, errors, required=True, pc=True) }}
+      {{ m.input('serial_maquina', 'Serial máquina', v, errors, pc=True) }}
+      {{ m.input('modelo_pos', 'Modelo POS', v, errors, required=True) }}
+      {{ m.input('serial_pos', 'Serial POS', v, errors, pc=True) }}
+    </div>
+    <datalist id="dl-fabricantes">{% for o in cat.fabricante %}<option value="{{ o }}">{% endfor %}</datalist>
+  </section>
+
+  <section class="form-section" data-step>
+    <h2>Versiones</h2>
+    <p class="muted small">Registre las versiones exactas. Si un dato no se conoce, use “Pendiente” e indique en Observaciones quién debe confirmarlo.</p>
+    <div class="form-grid">
+      {{ m.input('firmware', 'Firmware NEW5320', v, errors, required=True, pc=True) }}
+      {{ m.input('mdb_estandar', 'MDB — Estándar / Especificación', v, errors, pc=True) }}
+      {{ m.input('mdb_version', 'MDB — Versión de implementación', v, errors, pc=True) }}
+      {{ m.input('mdb_modulo', 'MDB — Módulo de software', v, errors, pc=True) }}
+      {{ m.input('version_financiera', 'Versión Financiera', v, errors, pc=True) }}
+      {{ m.input('version_polaris', 'Versión Agente Polaris', v, errors, pc=True) }}
+      {{ m.textarea('configuraciones', 'Configuraciones relevantes', v, errors, rows=2, pc=True) }}
+    </div>
+  </section>
+
+  <section class="form-section" data-step>
+    <h2>Instalación y observaciones</h2>
+    <div class="form-grid">
+      {{ m.input('version_anterior', 'Versión anterior (si aplica)', v, errors, placeholder='N/A') }}
+      {{ m.input('version_nueva', 'Versión nueva (si aplica)', v, errors, placeholder='N/A') }}
+      {{ m.input('fecha_instalacion', 'Fecha de instalación', v, errors, placeholder='AAAA-MM-DD o N/A') }}
+      {{ m.input('checksum', 'Identificador de compilación / checksum', v, errors, placeholder='N/A') }}
+      {{ m.input('compatibilidad', 'Compatibilidad prevista', v, errors, pc=True) }}
+      {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=3) }}
+    </div>
+  </section>
+
+  <div class="form-actions sticky">
+    <div class="step-nav">
+      <button type="button" class="btn btn-ghost" data-step-prev>Anterior</button>
+      <button type="button" class="btn" data-step-next>Siguiente</button>
+    </div>
+    <div class="spacer"></div>
+    {% if not sid or (session and session.estado_registro == S.ESTADO_REGISTRO_BORRADOR) %}
+      <button class="btn" name="accion" value="borrador">Guardar borrador</button>
+    {% endif %}
+    <button class="btn btn-primary" name="accion" value="guardar">{{ 'Guardar cambios' if sid else 'Registrar visita' }}</button>
+  </div>
+</form>
+{% endblock %}

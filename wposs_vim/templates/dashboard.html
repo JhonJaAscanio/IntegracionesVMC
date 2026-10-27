@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Dashboard</h1>
+    <p class="muted">Estado de las integraciones calculado desde el libro de trabajo.</p>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div class="field"><label for="d-desde">Desde</label><input id="d-desde" type="date" name="desde" value="{{ f.desde }}"></div>
+  <div class="field"><label for="d-hasta">Hasta</label><input id="d-hasta" type="date" name="hasta" value="{{ f.hasta }}"></div>
+  <div class="field"><label for="d-cliente">Cliente</label><input id="d-cliente" name="cliente" value="{{ f.cliente }}" list="dl-clientes"></div>
+  <div class="field"><label for="d-fab">Fabricante</label>
+    <select id="d-fab" name="fabricante"><option value="">Todos</option>{% for o in options.fabricante %}<option {{ 'selected' if f.fabricante == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="d-mod">Modelo</label>
+    <select id="d-mod" name="modelo_maquina"><option value="">Todos</option>{% for o in options.modelo_maquina %}<option {{ 'selected' if f.modelo_maquina == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="d-fw">Firmware</label>
+    <select id="d-fw" name="firmware"><option value="">Todos</option>{% for o in options.firmware %}<option {{ 'selected' if f.firmware == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="d-cat">Estado</label>
+    <select id="d-cat" name="categoria"><option value="">Todos</option>{% for k, label in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if f.categoria == k }}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="filters-actions">
+    <button class="btn btn-primary btn-sm">Aplicar</button>
+    {% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.dashboard') }}">Limpiar</a>{% endif %}
+  </div>
+  <datalist id="dl-clientes">{% for o in options.cliente %}<option value="{{ o }}">{% endfor %}</datalist>
+</form>
+
+{% if stats.total_sesiones == 0 %}
+  {{ m.empty('Aún no hay sesiones registradas' if not f else 'Ninguna sesión coincide con los filtros',
+             'Los indicadores se calculan únicamente con datos reales del libro.' ~
+             (' Se excluyeron ' ~ stats.excluidas_ejemplo ~ ' sesión(es) de ejemplo.' if stats.excluidas_ejemplo else ''),
+             url_for('main.visita_nueva') if not f else None, 'Registrar la primera visita') }}
+{% else %}
+<section class="kpis">
+  <div class="kpi"><span class="kpi-label">Sesiones</span><span class="kpi-value">{{ stats.total_sesiones }}</span></div>
+  <div class="kpi"><span class="kpi-label">Modelos de máquina</span><span class="kpi-value">{{ stats.modelos }}</span></div>
+  <div class="kpi"><span class="kpi-label">Aptas para piloto</span><span class="kpi-value tone-ok">{{ stats.categorias.aprobada }}</span>
+    {% if stats.categorias.condiciones %}<span class="kpi-sub">+{{ stats.categorias.condiciones }} con condiciones</span>{% endif %}</div>
+  <div class="kpi"><span class="kpi-label">Pendientes</span><span class="kpi-value tone-warn">{{ stats.categorias.pendiente }}</span></div>
+  <div class="kpi"><span class="kpi-label">No aptas</span><span class="kpi-value tone-bad">{{ stats.categorias.fallida }}</span></div>
+  <div class="kpi"><span class="kpi-label">Incidencias abiertas</span><span class="kpi-value">{{ stats.inc_abiertas }}</span><span class="kpi-sub">{{ stats.inc_cerradas }} cerradas</span></div>
+</section>
+
+<div class="grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>Casos de prueba</h2><span class="muted">{{ stats.pruebas_total }} en total</span></div>
+    {% set total = stats.pruebas_total or 1 %}
+    <div class="stack-bar" role="img" aria-label="Distribución de estados de prueba">
+      {% for estado, n in stats.pruebas.items() %}{% if n %}<span class="seg seg-{{ estado|estado_clase }}" style="width: {{ (n / total * 100)|round(2) }}%"></span>{% endif %}{% endfor %}
+      {% if stats.pruebas_otros %}<span class="seg seg-neutral" style="width: {{ (stats.pruebas_otros / total * 100)|round(2) }}%"></span>{% endif %}
+    </div>
+    <ul class="legend">
+      {% for estado, n in stats.pruebas.items() %}
+      <li><span class="dot dot-{{ estado|estado_clase }}"></span>{{ estado }}<strong>{{ n }}</strong></li>
+      {% endfor %}
+      {% if stats.pruebas_otros %}<li><span class="dot dot-neutral"></span>No aplica / En observación<strong>{{ stats.pruebas_otros }}</strong></li>{% endif %}
+    </ul>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Visitas por país</h2></div>
+    {% if stats.paises %}
+      {% set maxp = stats.paises[0][1] %}
+      <ul class="bars">
+        {% for pais, n in stats.paises %}
+        <li><span class="bars-label">{{ pais }}</span><span class="bars-track"><span class="bars-fill" style="width: {{ (n / maxp * 100)|round(2) }}%"></span></span><strong>{{ n }}</strong></li>
+        {% endfor %}
+      </ul>
+      {% if stats.sin_pais %}<p class="muted small">{{ stats.sin_pais }} sesión(es) sin país registrado.</p>{% endif %}
+    {% else %}
+      <p class="muted">Ninguna sesión tiene país registrado. Diligencie País y Ciudad en la identificación de la visita.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Últimas visitas</h2><a href="{{ url_for('main.visitas') }}" class="link">Ver todas</a></div>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Sesión</th><th>Fecha</th><th>Cliente</th><th>Máquina</th><th>Firmware</th><th>Estado</th></tr></thead>
+    <tbody>
+    {% for s in stats.recientes %}
+      <tr data-href="{{ url_for('main.visita', sid=s.sesion_id) }}">
+        <td><a href="{{ url_for('main.visita', sid=s.sesion_id) }}" class="mono">{{ s.sesion_id }}</a></td>
+        <td>{{ s.fecha or '—' }}</td>
+        <td class="truncate">{{ s.cliente or '—' }}</td>
+        <td>{{ s.fabricante or '—' }} <span class="muted">{{ s.modelo_maquina }}</span></td>
+        <td class="mono">{{ s.firmware or '—' }}</td>
+        <td>{{ m.badge(s.estado_integracion) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% if stats.excluidas_ejemplo %}<p class="muted small">Se excluyen {{ stats.excluidas_ejemplo }} sesión(es) marcadas como “Fila de ejemplo” en el libro original. Puede cambiarlo en Configuración.</p>{% endif %}
+{% endif %}
+{% endblock %}

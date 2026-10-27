@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ 'Prueba ' ~ test.id if test else 'Nueva prueba' }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    {% if v.get('sesion_id') %}<a class="back" href="{{ url_for('main.visita', sid=v.get('sesion_id'), tab='pruebas') }}"><svg class="i"><use href="#i-back"/></svg>{{ v.get('sesion_id') }}</a>{% endif %}
+    <h1>{% if test %}Prueba <span class="mono">{{ test.id }}</span>{% else %}Nuevo caso de prueba{% endif %}</h1>
+    <p class="muted">{% if test %}Sesión {{ test.sesion_id }} · {{ test.componente }}{% else %}El ID se genera según el componente (p. ej. MDB-004).{% endif %}</p>
+  </div>
+  {% if test and test.estado in (S.ESTADO_FALLIDO, S.ESTADO_BLOQUEADO) %}
+  <a class="btn" href="{{ url_for('main.incidencia_nueva', prueba=test.id) }}"><svg class="i"><use href="#i-alert"/></svg>Crear incidencia</a>
+  {% endif %}
+</div>
+
+<form method="post" class="form" novalidate>
+  {{ m.csrf() }}
+  <section class="form-section">
+    <h2>Definición</h2>
+    <div class="form-grid">
+      {% if test %}
+        <div class="field"><label>Sesión ID</label><input value="{{ test.sesion_id }}" disabled></div>
+      {% else %}
+        <div class="field{{ ' has-error' if errors.get('sesion_id') }}">
+          {{ m.label('sesion_id', 'Sesión ID', True) }}
+          <select id="f-sesion_id" name="sesion_id">
+            <option value="">Seleccione…</option>
+            {% for s in sesiones %}<option value="{{ s.sesion_id }}" {{ 'selected' if s.sesion_id == v.get('sesion_id') }}>{{ s.sesion_id }} · {{ s.cliente|truncate(40) }}</option>{% endfor %}
+          </select>
+          {{ m.err(errors, 'sesion_id') }}
+        </div>
+      {% endif %}
+      {{ m.select('componente', 'Componente', cat.componente, v, errors, required=True) }}
+      {{ m.select('tipo_verificacion', 'Tipo de verificación', cat.tipo_verificacion, v, errors, required=True, help='Diferencie la prueba ejecutada de la revisión documental.') }}
+      {{ m.input('responsable', 'Responsable', v, errors) }}
+      {{ m.textarea('objetivo', 'Objetivo', v, errors, required=True, rows=2) }}
+      {{ m.textarea('precondiciones', 'Precondiciones', v, errors, rows=2) }}
+      {{ m.textarea('procedimiento', 'Procedimiento', v, errors, rows=3) }}
+      {{ m.textarea('resultado_esperado', 'Resultado esperado (criterio de aceptación)', v, errors, rows=2, help='Regístrelo antes de ejecutar el caso.') }}
+    </div>
+  </section>
+  <section class="form-section">
+    <h2>Ejecución</h2>
+    <div class="form-grid">
+      {{ m.select('estado', 'Estado', cat.estados, v, errors, required=True, help='No marque Aprobado si la prueba no se ejecutó o no hay evidencia suficiente.') }}
+      {{ m.input('siguiente_accion', 'Siguiente acción', v, errors, pc=True) }}
+      {{ m.textarea('resultado_obtenido', 'Resultado obtenido', v, errors, rows=3, pc=True) }}
+      {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=2) }}
+    </div>
+    {% if test %}
+    <dl class="kv small">
+      <dt>Incidencia asociada</dt><dd class="mono">{{ test.incidencia or '—' }}</dd>
+      <dt>Evidencia</dt><dd>{{ m.evidence_links(test.evidencia) }} <a class="link small" href="{{ url_for('main.visita', sid=test.sesion_id, tab='evidencias') }}">Adjuntar</a></dd>
+    </dl>
+    {% endif %}
+  </section>
+  <div class="form-actions sticky">
+    <div class="spacer"></div>
+    {% if not test %}<button class="btn" name="accion" value="otra">Guardar y registrar otra</button>{% endif %}
+    <button class="btn btn-primary" name="accion" value="guardar">{{ 'Guardar cambios' if test else 'Registrar prueba' }}</button>
+  </div>
+</form>
+{% endblock %}

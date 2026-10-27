@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Visitas e integraciones{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Visitas e integraciones</h1>
+    <p class="muted">Histórico de sesiones de prueba por máquina y POS.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('main.visita_nueva') }}"><svg class="i"><use href="#i-plus"/></svg>Nueva visita</a>
+</div>
+
+<form class="filters" method="get">
+  <div class="field grow"><label for="v-q">Buscar</label><input id="v-q" type="search" name="q" value="{{ f.q }}" placeholder="ID, cliente, fabricante, modelo, serial…"></div>
+  <div class="field"><label for="v-pais">País</label>
+    <select id="v-pais" name="pais"><option value="">Todos</option>{% for o in options.pais %}<option {{ 'selected' if f.pais == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-fab">Fabricante</label>
+    <select id="v-fab" name="fabricante"><option value="">Todos</option>{% for o in options.fabricante %}<option {{ 'selected' if f.fabricante == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-mod">Modelo</label>
+    <select id="v-mod" name="modelo_maquina"><option value="">Todos</option>{% for o in options.modelo_maquina %}<option {{ 'selected' if f.modelo_maquina == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-fw">Firmware</label>
+    <select id="v-fw" name="firmware"><option value="">Todos</option>{% for o in options.firmware %}<option {{ 'selected' if f.firmware == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-cat">Resultado</label>
+    <select id="v-cat" name="categoria"><option value="">Todos</option>{% for k, label in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if f.categoria == k }}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-reg">Registro</label>
+    <select id="v-reg" name="estado_registro"><option value="">Todos</option>{% for o in [S.ESTADO_REGISTRO_BORRADOR, S.ESTADO_REGISTRO_EN_CURSO, S.ESTADO_REGISTRO_CERRADA] %}<option {{ 'selected' if f.estado_registro == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="v-desde">Desde</label><input id="v-desde" type="date" name="desde" value="{{ f.desde }}"></div>
+  <div class="field"><label for="v-hasta">Hasta</label><input id="v-hasta" type="date" name="hasta" value="{{ f.hasta }}"></div>
+  <input type="hidden" name="orden" value="{{ sort }}"><input type="hidden" name="dir" value="{{ 'desc' if desc else 'asc' }}">
+  <div class="filters-actions">
+    <button class="btn btn-primary btn-sm">Filtrar</button>
+    {% if f.q or f.pais or f.fabricante or f.modelo_maquina or f.firmware or f.categoria or f.estado_registro or f.desde or f.hasta %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.visitas') }}">Limpiar</a>{% endif %}
+  </div>
+</form>
+
+{% if rows %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr>
+    {% macro th(key, text) %}{% set args = request.args.to_dict() %}{% set _ = args.update({'orden': key, 'dir': 'asc' if (sort == key and desc) else 'desc', 'pagina': 1}) %}<th><a class="sort {{ 'is-sorted' if sort == key }}" href="{{ url_for('main.visitas', **args) }}">{{ text }}{% if sort == key %}<span class="arrow">{{ '↓' if desc else '↑' }}</span>{% endif %}</a></th>{% endmacro %}
+    {{ th('id', 'Sesión') }}{{ th('fecha', 'Fecha') }}{{ th('cliente', 'Cliente / Piloto') }}{{ th('maquina', 'Máquina') }}{{ th('firmware', 'POS · Firmware') }}{{ th('responsable', 'Responsable') }}{{ th('estado', 'Estado') }}<th class="num" title="Pruebas fallidas, bloqueadas o pendientes / total">Pruebas</th><th class="num" title="Incidencias abiertas">Incid.</th>
+  </tr></thead>
+  <tbody>
+  {% for s in rows %}
+    <tr data-href="{{ url_for('main.visita', sid=s.sesion_id) }}">
+      <td class="nowrap"><a class="mono" href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a>{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</td>
+      <td class="nowrap">{{ s.fecha or '—' }}</td>
+      <td><div class="truncate" title="{{ s.cliente }}">{{ s.cliente or '—' }}</div>
+        {% if s.pais or s.ciudad %}<div class="muted small">{{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}</div>{% endif %}</td>
+      <td><div class="truncate">{{ s.fabricante or '—' }}</div>{% if s.modelo_maquina and s.modelo_maquina != s.fabricante %}<div class="muted small truncate">{{ s.modelo_maquina }}</div>{% endif %}</td>
+      <td class="nowrap">{{ s.modelo_pos or '—' }}<div class="muted small mono">{{ s.firmware or '—' }}</div></td>
+      <td><div class="truncate">{{ s.responsable or '—' }}</div></td>
+      <td>{{ m.badge(s.estado_integracion) }}</td>
+      <td class="num nowrap" title="Abiertas / total">{{ s.n_abiertas_pruebas }}<span class="muted">/{{ s.n_pruebas }}</span></td>
+      <td class="num">{{ s.inc_abiertas }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ m.pager(page, pages, total, 'main.visitas') }}
+{% else %}
+  {{ m.empty('Sin resultados', 'No hay sesiones que coincidan con la búsqueda.', url_for('main.visita_nueva'), 'Nueva visita') }}
+{% endif %}
+{% endblock %}

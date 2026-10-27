@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Casos de prueba{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Casos de prueba</h1><p class="muted">Todas las pruebas registradas, por componente y estado.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('main.prueba_nueva') }}"><svg class="i"><use href="#i-plus"/></svg>Nueva prueba</a>
+</div>
+<form class="filters" method="get">
+  <div class="field grow"><label for="p-q">Buscar</label><input id="p-q" type="search" name="q" value="{{ f.q }}" placeholder="ID, objetivo, resultado…"></div>
+  <div class="field"><label for="p-comp">Componente</label><select id="p-comp" name="componente"><option value="">Todos</option>{% for o in cat.componente %}<option {{ 'selected' if f.componente == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="p-est">Estado</label><select id="p-est" name="estado"><option value="">Todos</option>{% for o in cat.estados %}<option {{ 'selected' if f.estado == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="p-resp">Responsable</label><select id="p-resp" name="responsable"><option value="">Todos</option>{% for o in responsables %}<option {{ 'selected' if f.responsable == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="p-ses">Sesión</label><select id="p-ses" name="sesion"><option value="">Todas</option>{% for o in sesiones %}<option {{ 'selected' if f.sesion == o }}>{{ o }}</option>{% endfor %}</select></div>
+  {% if f.serial_pos %}<input type="hidden" name="serial_pos" value="{{ f.serial_pos }}">{% endif %}
+  <div class="filters-actions"><button class="btn btn-primary btn-sm">Filtrar</button>{% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.pruebas') }}">Limpiar</a>{% endif %}</div>
+</form>
+{% if f.serial_pos %}<p class="note small">Mostrando pruebas del POS con serial <span class="mono">{{ f.serial_pos }}</span>.</p>{% endif %}
+{% if rows %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>ID</th><th>Sesión</th><th>Componente</th><th>Verificación</th><th>Objetivo</th><th>Estado</th><th>Responsable</th><th>Incidencia</th></tr></thead>
+  <tbody>
+  {% for t in rows %}
+    <tr data-href="{{ url_for('main.prueba_editar', tid=t.id) }}">
+      <td class="mono nowrap"><a href="{{ url_for('main.prueba_editar', tid=t.id) }}">{{ t.id }}</a></td>
+      <td class="mono nowrap"><a href="{{ url_for('main.visita', sid=t.sesion_id, tab='pruebas') }}">{{ t.sesion_id }}</a></td>
+      <td>{{ t.componente }}</td>
+      <td class="small">{{ t.tipo_verificacion }}</td>
+      <td class="truncate-2">{{ t.objetivo }}{% if t.plantilla %} <span class="tag" title="Las observaciones conservan el texto de plantilla 'Fila de ejemplo'">Texto de plantilla</span>{% endif %}</td>
+      <td>{{ m.badge(t.estado, 'Sin estado') }}</td>
+      <td class="small">{{ t.responsable or '—' }}</td>
+      <td class="mono small">{{ t.incidencia or '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ m.pager(page, pages, total, 'main.pruebas') }}
+{% else %}
+  {{ m.empty('Sin pruebas', 'No hay casos de prueba que coincidan con los filtros.') }}
+{% endif %}
+{% endblock %}

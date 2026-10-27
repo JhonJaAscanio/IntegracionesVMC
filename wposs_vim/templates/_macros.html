@@ -1,0 +1,86 @@
+{% macro badge(value, empty='—') -%}
+  {%- if value -%}<span class="badge badge-{{ value|estado_clase }}"><i></i>{{ value }}</span>
+  {%- else -%}<span class="muted">{{ empty }}</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro label(name, text, required=False) -%}
+  <label for="f-{{ name }}">{{ text }}{% if required %} <span class="req" title="Obligatorio">*</span>{% endif %}</label>
+{%- endmacro %}
+
+{% macro err(errors, name) -%}
+  {% if errors.get(name) %}<p class="field-error">{{ errors[name] }}</p>{% endif %}
+{%- endmacro %}
+
+{% macro input(name, text, v, errors, type='text', required=False, help=None, pc=False, placeholder='', list=None, wide=False) -%}
+<div class="field{{ ' has-error' if errors.get(name) }}{{ ' wide' if wide }}">
+  {{ label(name, text, required) }}
+  <div class="control{{ ' with-action' if pc }}">
+    <input id="f-{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ v.get(name, '') }}"
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+           {% if list %}list="{{ list }}"{% endif %} maxlength="4000" autocomplete="off">
+    {% if pc %}<button type="button" class="chip" data-fill="f-{{ name }}" title="Registrar como pendiente de confirmar">Pendiente</button>{% endif %}
+  </div>
+  {% if help %}<p class="help">{{ help }}</p>{% endif %}
+  {{ err(errors, name) }}
+</div>
+{%- endmacro %}
+
+{% macro textarea(name, text, v, errors, required=False, help=None, rows=3, pc=False, wide=True) -%}
+<div class="field{{ ' has-error' if errors.get(name) }}{{ ' wide' if wide }}">
+  {{ label(name, text, required) }}
+  <div class="control{{ ' with-action' if pc }}">
+    <textarea id="f-{{ name }}" name="{{ name }}" rows="{{ rows }}" maxlength="4000">{{ v.get(name, '') }}</textarea>
+    {% if pc %}<button type="button" class="chip" data-fill="f-{{ name }}">Pendiente</button>{% endif %}
+  </div>
+  {% if help %}<p class="help">{{ help }}</p>{% endif %}
+  {{ err(errors, name) }}
+</div>
+{%- endmacro %}
+
+{% macro select(name, text, options, v, errors, required=False, blank='Seleccione…', help=None, wide=False) -%}
+<div class="field{{ ' has-error' if errors.get(name) }}{{ ' wide' if wide }}">
+  {{ label(name, text, required) }}
+  <select id="f-{{ name }}" name="{{ name }}">
+    <option value="">{{ blank }}</option>
+    {% set current = v.get(name, '') %}
+    {% for o in options %}<option value="{{ o }}" {{ 'selected' if o == current }}>{{ o }}</option>{% endfor %}
+    {% if current and current not in options %}<option value="{{ current }}" selected>{{ current }} (no está en el catálogo)</option>{% endif %}
+  </select>
+  {% if help %}<p class="help">{{ help }}</p>{% endif %}
+  {{ err(errors, name) }}
+</div>
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="_csrf" value="{{ csrf_token }}">{%- endmacro %}
+
+{% macro pager(page, pages, total, endpoint) -%}
+{% if pages > 1 %}
+<nav class="pager">
+  <span class="muted">{{ total }} registros · página {{ page }} de {{ pages }}</span>
+  <div>
+    {% set args = request.args.to_dict() %}
+    {% if page > 1 %}{% set _ = args.update({'pagina': page - 1}) %}<a class="btn btn-sm" href="{{ url_for(endpoint, **args) }}">Anterior</a>{% endif %}
+    {% if page < pages %}{% set _ = args.update({'pagina': page + 1}) %}<a class="btn btn-sm" href="{{ url_for(endpoint, **args) }}">Siguiente</a>{% endif %}
+  </div>
+</nav>
+{% else %}
+<p class="pager muted">{{ total }} registro(s)</p>
+{% endif %}
+{%- endmacro %}
+
+{% macro empty(title, text, action_url=None, action_label=None) -%}
+<div class="empty">
+  <p class="empty-title">{{ title }}</p>
+  <p class="muted">{{ text }}</p>
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label }}</a>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro evidence_links(value) -%}
+  {% if value %}
+    {% for part in value.split(';') %}{% set p = part.strip() %}{% if p %}
+      {% if p.startswith('evidencias/') %}<a class="file-link" href="{{ url_for('main.evidencia_ver', ruta=p) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-file"/></svg>{{ p.rsplit('/', 1)[-1] }}</a>
+      {% else %}<span>{{ p }}</span>{% endif %}
+    {% endif %}{% endfor %}
+  {% else %}<span class="muted">—</span>{% endif %}
+{%- endmacro %}

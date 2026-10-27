@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Cierre de sesión{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Cierre de sesión</h1><p class="muted">Totales por sesión y concepto final registrado.</p></div>
+</div>
+{% if rows %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Sesión</th><th>Fecha</th><th>Cliente</th><th class="num">Ejec./Plan.</th><th class="num">Aprob.</th><th class="num">Fall.</th><th class="num">Bloq.</th><th class="num">Pend.</th><th class="num">Incid.</th><th>Concepto</th><th>Cierre</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}{% set s = r.sesion %}{% set t = r.totales %}
+    <tr data-href="{{ url_for('main.cierre', sid=s.sesion_id) }}">
+      <td class="mono"><a href="{{ url_for('main.cierre', sid=s.sesion_id) }}">{{ s.sesion_id }}</a></td>
+      <td class="nowrap">{{ s.fecha }}</td>
+      <td class="truncate">{{ s.cliente or '—' }}</td>
+      <td class="num">{{ t.ejecutadas }}/{{ t.planificadas }}</td>
+      <td class="num tone-ok">{{ t.aprobadas }}</td>
+      <td class="num tone-bad">{{ t.fallidas }}</td>
+      <td class="num">{{ t.bloqueadas }}</td>
+      <td class="num">{{ t.pendientes }}</td>
+      <td class="num">{{ t.incidencias_abiertas }}</td>
+      <td>{{ m.badge(r.cierre.concepto if r.cierre else '', 'Sin cierre') }}</td>
+      <td class="small nowrap">{{ r.cierre.fecha_cierre if r.cierre else '—' }}</td>
+      <td class="right"><a class="btn btn-sm" href="{{ url_for('main.cierre', sid=s.sesion_id) }}">{{ 'Ver' if r.cierre else 'Cerrar' }}</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+  {{ m.empty('Sin sesiones', 'Registre una visita para poder cerrarla.', url_for('main.visita_nueva'), 'Nueva visita') }}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,20 @@
+# Entorno y caché de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Datos de ejecución: libro de trabajo, evidencias, pendientes, exportaciones,
+# copia del original y clave de sesión. Nunca se versionan.
+data/
+respaldos/
+logs/
+
+# Libro original con datos de clientes: no se publica. Las pruebas usan
+# tests/fixtures/checklist_anonimizado.xlsx.
+/WPOSS_Checklist_Pruebas_Vending_5320.xlsx
+
+# Archivos de bloqueo de Excel
+~$*
+
+# Configuración local de herramientas
+.claude/

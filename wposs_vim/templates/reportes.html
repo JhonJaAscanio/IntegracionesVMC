@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Reportes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Reportes</h1><p class="muted">Exportación, comparación de sesiones y consultas por equipo.</p></div>
+</div>
+
+<div class="grid-2 align-start">
+  <section class="panel">
+    <div class="panel-head"><h2>Exportar a Excel</h2></div>
+    <p class="muted small">Genera un libro nuevo en <span class="mono">data/exportaciones</span>. El libro de trabajo no se modifica.</p>
+    <form method="post" action="{{ url_for('main.exportar') }}" class="form">
+      {{ m.csrf() }}
+      <div class="form-grid">
+        <div class="field"><label for="x-desde">Desde</label><input id="x-desde" type="date" name="desde"></div>
+        <div class="field"><label for="x-hasta">Hasta</label><input id="x-hasta" type="date" name="hasta"></div>
+        <div class="field"><label for="x-pais">País</label><select id="x-pais" name="pais"><option value="">Todos</option>{% for o in options.pais %}<option>{{ o }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="x-fab">Fabricante</label><select id="x-fab" name="fabricante"><option value="">Todos</option>{% for o in options.fabricante %}<option>{{ o }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="x-fw">Firmware</label><select id="x-fw" name="firmware"><option value="">Todos</option>{% for o in options.firmware %}<option>{{ o }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="x-cat">Resultado</label><select id="x-cat" name="categoria"><option value="">Todos</option>{% for k, label in CATEGORIES.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary"><svg class="i"><use href="#i-download"/></svg>Exportar .xlsx</button></div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Pruebas de un POS</h2></div>
+    {% if seriales %}
+    <form method="get" action="{{ url_for('main.pruebas') }}" class="inline-form">
+      <select name="serial_pos" aria-label="Serial POS">{% for o in seriales %}<option>{{ o }}</option>{% endfor %}</select>
+      <button class="btn btn-sm">Ver pruebas</button>
+    </form>
+    {% else %}<p class="muted">No hay seriales de POS registrados.</p>{% endif %}
+    <div class="panel-head mt"><h2>Historial de un modelo</h2></div>
+    {% if options.modelo_maquina %}
+    <form method="get" action="{{ url_for('main.visitas') }}" class="inline-form">
+      <select name="modelo_maquina" aria-label="Modelo">{% for o in options.modelo_maquina %}<option>{{ o }}</option>{% endfor %}</select>
+      <input type="hidden" name="orden" value="fecha"><input type="hidden" name="dir" value="asc">
+      <button class="btn btn-sm">Ver historial</button>
+    </form>
+    {% else %}<p class="muted">No hay modelos registrados.</p>{% endif %}
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Comparar sesiones</h2><span class="muted small">Seleccione entre 2 y 6</span></div>
+  {% if sessions|length >= 2 %}
+  <form method="get" action="{{ url_for('main.comparar') }}">
+    <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th></th><th>Sesión</th><th>Fecha</th><th>Cliente</th><th>Máquina</th><th>Firmware</th><th>Estado</th></tr></thead>
+      <tbody>
+      {% for s in sessions|sort(attribute='fecha', reverse=True) %}
+        <tr>
+          <td><input type="checkbox" name="s" value="{{ s.sesion_id }}" aria-label="Comparar {{ s.sesion_id }}" data-compare></td>
+          <td class="mono">{{ s.sesion_id }}</td><td>{{ s.fecha }}</td><td class="truncate">{{ s.cliente }}</td>
+          <td>{{ s.fabricante }} {{ s.modelo_maquina }}</td><td class="mono">{{ s.firmware }}</td><td>{{ m.badge(s.estado_integracion) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary" data-compare-submit>Comparar</button></div>
+  </form>
+  {% else %}<p class="muted">Se necesitan al menos dos sesiones.</p>{% endif %}
+</section>
+{% endblock %}

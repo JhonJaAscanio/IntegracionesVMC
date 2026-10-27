@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Comparar sesiones{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><a class="back" href="{{ url_for('main.reportes') }}"><svg class="i"><use href="#i-back"/></svg>Reportes</a>
+    <h1>Comparación de sesiones</h1></div>
+</div>
+<div class="table-wrap">
+<table class="table compare">
+  <thead><tr><th></th>{% for r in c.filas %}<th class="mono"><a href="{{ url_for('main.visita', sid=r.sesion.sesion_id) }}">{{ r.sesion.sesion_id }}</a></th>{% endfor %}</tr></thead>
+  <tbody>
+    {% for key, label in [('fecha','Fecha'),('cliente','Cliente'),('fabricante','Fabricante'),('modelo_maquina','Modelo máquina'),('modelo_pos','Modelo POS'),('serial_pos','Serial POS'),('firmware','Firmware NEW5320'),('mdb_version','MDB versión'),('mdb_modulo','MDB módulo'),('version_financiera','Versión Financiera'),('version_polaris','Agente Polaris'),('compatibilidad','Compatibilidad prevista')] %}
+    {% set values = c.filas|map(attribute='sesion')|map(attribute=key)|list %}
+    <tr class="{{ 'diff' if values|unique|list|length > 1 }}"><th>{{ label }}</th>{% for val in values %}<td>{{ val or '—' }}</td>{% endfor %}</tr>
+    {% endfor %}
+    <tr><th>Estado</th>{% for r in c.filas %}<td>{{ m.badge(r.sesion.estado_integracion) }}</td>{% endfor %}</tr>
+    <tr><th>Ejecutadas / planificadas</th>{% for r in c.filas %}<td>{{ r.totales.ejecutadas }}/{{ r.totales.planificadas }}</td>{% endfor %}</tr>
+    <tr><th>Aprobadas · Fallidas · Bloq. · Pend.</th>{% for r in c.filas %}<td>{{ r.totales.aprobadas }} · {{ r.totales.fallidas }} · {{ r.totales.bloqueadas }} · {{ r.totales.pendientes }}</td>{% endfor %}</tr>
+    <tr><th>Incidencias abiertas</th>{% for r in c.filas %}<td>{{ r.totales.incidencias_abiertas }}</td>{% endfor %}</tr>
+    {% for comp in c.componentes %}
+    <tr><th>{{ comp }}</th>{% for r in c.filas %}<td>{% for t in c.matriz.get(comp, {}).get(r.sesion.sesion_id, []) %}<div class="small"><span class="mono">{{ t.id }}</span> {{ m.badge(t.estado, 'Sin estado') }}</div>{% else %}<span class="muted">—</span>{% endfor %}</td>{% endfor %}</tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted small">Las filas resaltadas tienen valores diferentes entre sesiones.</p>
+{% endblock %}

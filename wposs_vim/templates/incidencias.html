@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Incidencias{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Incidencias</h1><p class="muted">Hallazgos con trazabilidad a la sesión y a la prueba que los originó.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('main.incidencia_nueva') }}"><svg class="i"><use href="#i-plus"/></svg>Nueva incidencia</a>
+</div>
+<form class="filters" method="get">
+  <div class="field"><label for="i-est">Estado</label><select id="i-est" name="estado"><option value="">Todos</option>{% for o in cat.estado_incidencia %}<option {{ 'selected' if f.estado == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="i-sev">Severidad</label><select id="i-sev" name="severidad"><option value="">Todas</option>{% for o in cat.severidad %}<option {{ 'selected' if f.severidad == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="i-resp">Responsable</label><select id="i-resp" name="responsable"><option value="">Todos</option>{% for o in responsables %}<option {{ 'selected' if f.responsable == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="i-ses">Sesión</label><select id="i-ses" name="sesion"><option value="">Todas</option>{% for o in sesiones %}<option {{ 'selected' if f.sesion == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <label class="check"><input type="checkbox" name="ver_ejemplos" value="1" {{ 'checked' if f.ver_ejemplos }}> Incluir filas de ejemplo</label>
+  <div class="filters-actions"><button class="btn btn-primary btn-sm">Filtrar</button>{% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.incidencias') }}">Limpiar</a>{% endif %}</div>
+</form>
+{% if rows %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>ID</th><th>Fecha</th><th>Sesión</th><th>Componente y versión</th><th>Descripción</th><th>Prueba</th><th>Severidad</th><th>Estado</th><th>Responsable</th><th>Ticket</th></tr></thead>
+  <tbody>
+  {% for i in rows %}
+    <tr data-href="{{ url_for('main.incidencia_editar', iid=i.id) }}">
+      <td class="mono nowrap"><a href="{{ url_for('main.incidencia_editar', iid=i.id) }}">{{ i.id }}</a>{% if i.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</td>
+      <td class="nowrap">{{ i.fecha }}</td>
+      <td class="mono"><a href="{{ url_for('main.visita', sid=i.sesion_id, tab='incidencias') }}">{{ i.sesion_id }}</a></td>
+      <td class="small">{{ i.componente_version or '—' }}</td>
+      <td class="truncate-2">{{ i.descripcion }}</td>
+      <td class="mono small">{{ i.prueba_id or '—' }}</td>
+      <td>{{ m.badge(i.severidad) }}</td>
+      <td>{{ m.badge(i.estado) }}</td>
+      <td class="small">{{ i.responsable or '—' }}</td>
+      <td class="small">{{ i.ticket or '—' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ m.pager(page, pages, total, 'main.incidencias') }}
+{% else %}
+  {{ m.empty('Sin incidencias', 'No hay incidencias que coincidan con los filtros.') }}
+{% endif %}
+{% endblock %}

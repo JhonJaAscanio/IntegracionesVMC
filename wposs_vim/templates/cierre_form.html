@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Cierre {{ s.sesion_id }}{% endblock %}
+{% block content %}
+{% set t = ev.totales %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ url_for('main.visita', sid=s.sesion_id) }}"><svg class="i"><use href="#i-back"/></svg>{{ s.sesion_id }}</a>
+    <h1>Cierre de sesión {{ m.badge(current.concepto if current else '') if current and current.concepto }}</h1>
+    <p class="muted">{{ s.cliente or '—' }} · {{ s.fabricante }} {{ s.modelo_maquina }} · POS {{ s.modelo_pos }} · FW {{ s.firmware or '—' }}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.informe', sid=s.sesion_id) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-print"/></svg>Informe PDF</a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Totales calculados</h2><span class="muted small">Desde “Casos de Prueba” e “Incidencias”</span></div>
+  <div class="stats-row">
+    <div><span class="kpi-label">Planificadas</span><strong>{{ t.planificadas }}</strong></div>
+    <div><span class="kpi-label">Ejecutadas</span><strong>{{ t.ejecutadas }}</strong></div>
+    <div><span class="kpi-label">Aprobadas</span><strong class="tone-ok">{{ t.aprobadas }}</strong></div>
+    <div><span class="kpi-label">Fallidas</span><strong class="tone-bad">{{ t.fallidas }}</strong></div>
+    <div><span class="kpi-label">Bloqueadas</span><strong class="tone-block">{{ t.bloqueadas }}</strong></div>
+    <div><span class="kpi-label">Pendientes</span><strong class="tone-warn">{{ t.pendientes }}</strong></div>
+    <div><span class="kpi-label">Incidencias abiertas</span><strong>{{ t.incidencias_abiertas }}</strong></div>
+  </div>
+  {% if t.otros %}<p class="muted small">“Ejecutadas” sigue la fórmula del libro: incluye {% for e, n in t.otros.items() %}{{ n }} en “{{ e }}”{{ ', ' if not loop.last }}{% endfor %}.</p>{% endif %}
+  {% if excel_totals.incidencias_abiertas != t.incidencias_abiertas or excel_totals.planificadas != t.planificadas %}
+  <p class="note small">La hoja de Excel mostrará {{ excel_totals.incidencias_abiertas }} incidencia(s) abierta(s) y {{ excel_totals.planificadas }} prueba(s), porque sus fórmulas también cuentan filas de ejemplo. Elimine o edite esas filas para que ambos cálculos coincidan.</p>
+  {% endif %}
+</section>
+
+<div class="grid-2 align-start">
+  <section class="panel">
+    <div class="panel-head"><h2>Criterios de aceptación</h2></div>
+    {% if ev.bloqueos %}
+      <p class="small"><strong>No se cumple “Apto para piloto”:</strong></p>
+      <ul class="checklist bad">{% for bl in ev.bloqueos %}<li>{{ bl }}</li>{% endfor %}</ul>
+    {% else %}
+      <ul class="checklist ok"><li>Se cumplen los criterios configurados para “Apto para piloto”.</li></ul>
+    {% endif %}
+    <p class="small">Concepto sugerido: {{ m.badge(ev.sugerido) }} <span class="muted">— orientativo; la decisión es del responsable del cierre.</span></p>
+    <details class="more">
+      <summary>Criterios configurados</summary>
+      <ul class="small">
+        {% if criterios.apto_requiere_cero_fallidas %}<li>Sin pruebas fallidas</li>{% endif %}
+        {% if criterios.apto_requiere_cero_bloqueadas %}<li>Sin pruebas bloqueadas</li>{% endif %}
+        {% if criterios.apto_requiere_cero_pendientes %}<li>Sin pruebas pendientes</li>{% endif %}
+        {% if criterios.apto_requiere_cero_incidencias_abiertas %}<li>Sin incidencias abiertas</li>{% endif %}
+        {% if criterios.apto_requiere_revision_fisica_sin_fallos %}<li>Revisión física completa sin fallos ni pendientes</li>{% endif %}
+        <li>Componentes críticos: {{ criterios.componentes_criticos|join(', ') if criterios.componentes_criticos else 'no definidos (pendiente de confirmar)' }}</li>
+      </ul>
+      <p class="muted small">El libro original deja abierta la pregunta sobre los criterios de salida; estos valores se ajustan en Configuración.</p>
+    </details>
+    {% if owners %}
+    <h3 class="h3">Pendientes por responsable</h3>
+    <ul class="owners">
+      {% for owner, items in owners.items() %}
+      <li><strong>{{ owner }}</strong>
+        <span class="muted small">{% if items.pruebas %}{{ items.pruebas|length }} prueba(s): {{ items.pruebas|join(', ') }}{% endif %}{% if items.pruebas and items.incidencias %} · {% endif %}{% if items.incidencias %}{{ items.incidencias|length }} incidencia(s): {{ items.incidencias|join(', ') }}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Concepto final</h2></div>
+    <form method="post" class="form" novalidate>
+      {{ m.csrf() }}
+      <div class="form-grid one">
+        {{ m.select('concepto', 'Concepto final', cat.concepto, v, errors, required=True) }}
+        {{ m.input('fecha_cierre', 'Fecha de cierre', v, errors, type='date', required=True) }}
+        {{ m.input('responsable_cierre', 'Responsable del cierre', v, errors, required=True) }}
+        {{ m.textarea('versiones_cubiertas', 'Versiones y equipos cubiertos', v, errors, rows=3, help='Un cierre aplica solo a la combinación de equipos y versiones probados.') }}
+        {{ m.textarea('pendientes_area', 'Pendientes (Fabricante / Desarrollo / QA / Cliente)', v, errors, rows=3) }}
+      </div>
+      <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">{{ 'Actualizar cierre' if current else 'Guardar cierre' }}</button></div>
+    </form>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>Resumen para correo</h2>
+    <button type="button" class="btn btn-sm" data-copy="#email-summary"><svg class="i"><use href="#i-copy"/></svg>Copiar</button>
+  </div>
+  <pre class="summary" id="email-summary">{{ summary }}</pre>
+  {% if not current %}<p class="muted small">El concepto y los pendientes se incluyen al guardar el cierre.</p>{% endif %}
+</section>
+{% endblock %}

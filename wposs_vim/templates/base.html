@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ APP_NAME }}{% endblock %} · WPOSS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+</head>
+<body>
+{% include "_icons.html" %}
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">W</span>
+      <div class="brand-text"><strong>WPOSS</strong><span>Vending Integration</span></div>
+    </div>
+    {% set nav = [
+      ('dashboard', 'main.dashboard', 'Dashboard', 'grid'),
+      ('visitas', 'main.visitas', 'Visitas e integraciones', 'list'),
+      ('nueva', 'main.visita_nueva', 'Nueva visita', 'plus'),
+      ('maquinas', 'main.maquinas', 'Máquinas registradas', 'box'),
+      ('identificacion', 'main.identificacion', 'Identificación y versiones', 'layers'),
+      ('revision', 'main.revision_lista', 'Revisión física y eléctrica', 'zap'),
+      ('pruebas', 'main.pruebas', 'Casos de prueba', 'check'),
+      ('incidencias', 'main.incidencias', 'Incidencias', 'alert'),
+      ('cierre', 'main.cierre_lista', 'Cierre de sesión', 'flag'),
+      ('reportes', 'main.reportes', 'Reportes', 'chart'),
+      ('configuracion', 'main.configuracion', 'Configuración y respaldos', 'settings'),
+    ] %}
+    <nav>
+      {% for key, endpoint, label, icon in nav %}
+        {% if key == 'maquinas' or key == 'reportes' %}<div class="nav-sep"></div>{% endif %}
+        <a href="{{ url_for(endpoint) }}" class="{{ 'active' if active == key }}">
+          <svg class="i"><use href="#i-{{ icon }}"/></svg><span>{{ label }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">v{{ APP_VERSION }} · Local</div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn-icon menu-toggle" type="button" data-toggle-menu aria-label="Menú">
+        <svg class="i"><use href="#i-menu"/></svg>
+      </button>
+      <form class="search" action="{{ url_for('main.visitas') }}" method="get" role="search">
+        <svg class="i"><use href="#i-search"/></svg>
+        <input type="search" name="q" placeholder="Buscar sesión, cliente, modelo o serial" aria-label="Buscar">
+      </form>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('main.visita_nueva') }}"><svg class="i"><use href="#i-plus"/></svg><span>Nueva visita</span></a>
+    </header>
+    {% if pending_count %}
+    <div class="banner banner-warn">
+      <svg class="i"><use href="#i-alert"/></svg>
+      <div><strong>{{ pending_count }} cambio(s) sin guardar en el libro.</strong>
+        El archivo Excel estaba bloqueado. Cierre Excel y reintente; los cambios se conservan en cola.</div>
+      <form method="post" action="{{ url_for('main.pendientes_reintentar') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="volver" value="{{ request.full_path }}">
+        <button class="btn btn-sm">Reintentar</button>
+      </form>
+    </div>
+    {% endif %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="toasts">
+        {% for cat, msg in messages %}
+          <div class="toast toast-{{ cat }}" role="status">
+            <svg class="i"><use href="#i-{{ 'check' if cat == 'ok' else 'alert' }}"/></svg>
+            <span>{{ msg }}</span>
+            <button type="button" class="toast-close" aria-label="Cerrar" data-dismiss>&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    <main class="content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<dialog id="confirm-dialog" class="dialog">
+  <form method="dialog">
+    <h3 data-confirm-title>Confirmar</h3>
+    <p data-confirm-text></p>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn">Cancelar</button>
+      <button value="ok" class="btn btn-primary" data-confirm-ok>Confirmar</button>
+    </div>
+  </form>
+</dialog>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

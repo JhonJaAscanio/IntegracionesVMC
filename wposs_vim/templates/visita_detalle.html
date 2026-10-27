@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set s = b.sesion %}
+{% block title %}{{ s.sesion_id }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ url_for('main.visitas') }}"><svg class="i"><use href="#i-back"/></svg>Visitas</a>
+    <h1><span class="mono">{{ s.sesion_id }}</span> {{ m.badge(s.estado_integracion) }}{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</h1>
+    <p class="muted">{{ s.cliente or 'Cliente sin registrar' }} · {{ s.fecha or 'sin fecha' }}{% if s.hora %} {{ s.hora }}{% endif %}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}"><svg class="i"><use href="#i-edit"/></svg>Editar</a>
+    <a class="btn" href="{{ url_for('main.informe', sid=s.sesion_id) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-print"/></svg>Informe</a>
+    <a class="btn btn-primary" href="{{ url_for('main.cierre', sid=s.sesion_id) }}"><svg class="i"><use href="#i-flag"/></svg>{{ 'Ver cierre' if b.cierre else 'Cerrar sesión' }}</a>
+  </div>
+</div>
+
+{% if s.estado_registro == S.ESTADO_REGISTRO_BORRADOR %}
+<div class="note note-warn">Esta visita es un <strong>borrador</strong>. Complete la identificación para continuar con el cierre. <a href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}">Completar ahora</a></div>
+{% endif %}
+
+<nav class="tabs">
+  {% for key, label, count in [('resumen', 'Resumen', None), ('revision', 'Revisión física', b.revisiones|length), ('pruebas', 'Pruebas', b.pruebas|length), ('incidencias', 'Incidencias', b.incidencias|length), ('evidencias', 'Evidencias', b.evidencias|length), ('historial', 'Historial', b.historial|length)] %}
+    <a href="{{ url_for('main.visita', sid=s.sesion_id, tab=key) }}" class="{{ 'active' if tab == key }}">{{ label }}{% if count is not none %}<span class="count">{{ count }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+{% if tab == 'resumen' %}
+<div class="grid-2">
+  <section class="panel">
+    <div class="panel-head"><h2>Equipos</h2></div>
+    <dl class="kv">
+      <dt>Fabricante</dt><dd>{{ s.fabricante or '—' }}</dd>
+      <dt>Modelo máquina</dt><dd>{{ s.modelo_maquina or '—' }}</dd>
+      <dt>Serial máquina</dt><dd class="mono">{{ s.serial_maquina or '—' }}</dd>
+      <dt>Modelo POS</dt><dd>{{ s.modelo_pos or '—' }}</dd>
+      <dt>Serial POS</dt><dd class="mono">{{ s.serial_pos or '—' }}</dd>
+      <dt>Tipo de prueba</dt><dd>{{ s.tipo_prueba or '—' }}</dd>
+      <dt>Responsable</dt><dd>{{ s.responsable or '—' }}</dd>
+      <dt>Participantes</dt><dd class="pre">{{ s.participantes or '—' }}</dd>
+    </dl>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>Versiones</h2></div>
+    <dl class="kv">
+      <dt>Firmware NEW5320</dt><dd class="mono">{{ s.firmware or '—' }}</dd>
+      <dt>MDB estándar</dt><dd>{{ s.mdb_estandar or '—' }}</dd>
+      <dt>MDB versión</dt><dd>{{ s.mdb_version or '—' }}</dd>
+      <dt>MDB módulo</dt><dd>{{ s.mdb_modulo or '—' }}</dd>
+      <dt>Financiera</dt><dd class="mono">{{ s.version_financiera or '—' }}</dd>
+      <dt>Agente Polaris</dt><dd class="mono">{{ s.version_polaris or '—' }}</dd>
+      <dt>Compatibilidad prevista</dt><dd>{{ s.compatibilidad or '—' }}</dd>
+    </dl>
+    <details class="more">
+      <summary>Instalación, configuración y observaciones</summary>
+      <dl class="kv">
+        <dt>Configuraciones</dt><dd class="pre">{{ s.configuraciones or '—' }}</dd>
+        <dt>Versión anterior / nueva</dt><dd>{{ s.version_anterior or '—' }} → {{ s.version_nueva or '—' }}</dd>
+        <dt>Fecha de instalación</dt><dd>{{ s.fecha_instalacion or '—' }}</dd>
+        <dt>Compilación / checksum</dt><dd class="mono">{{ s.checksum or '—' }}</dd>
+        <dt>Objetivo</dt><dd class="pre">{{ s.objetivo or '—' }}</dd>
+        <dt>Observaciones</dt><dd class="pre">{{ s.observaciones or '—' }}</dd>
+      </dl>
+    </details>
+  </section>
+</div>
+<section class="panel">
+  <div class="panel-head"><h2>Resultado de pruebas</h2><a class="link" href="{{ url_for('main.visita', sid=s.sesion_id, tab='pruebas') }}">Ver pruebas</a></div>
+  <div class="stats-row">
+    <div><span class="kpi-label">Planificadas</span><strong>{{ totals.planificadas }}</strong></div>
+    <div><span class="kpi-label">Ejecutadas</span><strong>{{ totals.ejecutadas }}</strong></div>
+    <div><span class="kpi-label">Aprobadas</span><strong class="tone-ok">{{ totals.aprobadas }}</strong></div>
+    <div><span class="kpi-label">Fallidas</span><strong class="tone-bad">{{ totals.fallidas }}</strong></div>
+    <div><span class="kpi-label">Bloqueadas</span><strong class="tone-block">{{ totals.bloqueadas }}</strong></div>
+    <div><span class="kpi-label">Pendientes</span><strong class="tone-warn">{{ totals.pendientes }}</strong></div>
+    <div><span class="kpi-label">Incidencias abiertas</span><strong>{{ totals.incidencias_abiertas }}</strong></div>
+  </div>
+  {% if ev.bloqueos %}
+  <div class="note"><strong>Antes de declarar “Apto para piloto”:</strong>
+    <ul>{% for bl in ev.bloqueos %}<li>{{ bl }}</li>{% endfor %}</ul></div>
+  {% endif %}
+</section>
+
+{% elif tab == 'revision' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Revisión física y eléctrica</h2>
+    <span class="muted small">No realizar conexiones eléctricas no autorizadas por el fabricante.</span>
+  </div>
+  {% if not b.revisiones %}
+    <div class="empty">
+      <p class="empty-title">Sin revisión registrada</p>
+      <p class="muted">Se creará la lista de {{ cat.item_revision|length }} ítems del checklist en estado Pendiente.</p>
+      <form method="post" action="{{ url_for('main.revision_iniciar', sid=s.sesion_id) }}">{{ m.csrf() }}<button class="btn btn-primary">Iniciar revisión</button></form>
+    </div>
+  {% else %}
+  <form method="post" action="{{ url_for('main.revision_guardar', sid=s.sesion_id) }}">
+    {{ m.csrf() }}
+    <div class="table-wrap">
+    <table class="table table-form">
+      <thead><tr><th>Ítem de revisión</th><th class="w-res">Resultado</th><th>Observaciones</th><th>Evidencia</th></tr></thead>
+      <tbody>
+      {% for r in b.revisiones %}
+        <tr>
+          <td><input type="hidden" name="item_{{ loop.index0 }}" value="{{ r.item }}">{{ r.item }}</td>
+          <td><select name="resultado_{{ loop.index0 }}" aria-label="Resultado">
+            <option value="">—</option>
+            {% for e in cat.estados %}<option {{ 'selected' if r.resultado == e }}>{{ e }}</option>{% endfor %}
+          </select></td>
+          <td><textarea name="observaciones_{{ loop.index0 }}" rows="1" aria-label="Observaciones" class="autosize">{{ r.observaciones }}</textarea></td>
+          <td class="small">{{ m.evidence_links(r.evidencia) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">Guardar revisión</button></div>
+  </form>
+  <form method="post" action="{{ url_for('main.revision_iniciar', sid=s.sesion_id) }}" class="inline-form">
+    {{ m.csrf() }}
+    <input name="item" placeholder="Agregar ítem adicional de revisión" maxlength="300" required aria-label="Nuevo ítem">
+    <button class="btn btn-sm">Agregar ítem</button>
+  </form>
+  {% set faltantes = cat.item_revision|reject('in', b.revisiones|map(attribute='item')|list)|list %}
+  {% if faltantes %}
+  <form method="post" action="{{ url_for('main.revision_iniciar', sid=s.sesion_id) }}" class="inline-form">
+    {{ m.csrf() }}<span class="muted small">{{ faltantes|length }} ítem(s) del catálogo no están en esta revisión.</span>
+    <button class="btn btn-sm btn-ghost">Agregar ítems faltantes</button>
+  </form>
+  {% endif %}
+  {% endif %}
+</section>
+
+{% elif tab == 'pruebas' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Casos de prueba</h2>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.prueba_nueva', sesion=s.sesion_id) }}"><svg class="i"><use href="#i-plus"/></svg>Nueva prueba</a>
+  </div>
+  {% if b.pruebas %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>ID</th><th>Componente</th><th>Verificación</th><th>Objetivo</th><th>Estado</th><th>Responsable</th><th>Incidencia</th><th></th></tr></thead>
+    <tbody>
+    {% for t in b.pruebas %}
+      <tr>
+        <td class="mono nowrap"><a href="{{ url_for('main.prueba_editar', tid=t.id) }}">{{ t.id }}</a></td>
+        <td>{{ t.componente }}</td>
+        <td class="small">{{ t.tipo_verificacion }}</td>
+        <td><details class="cell-details"><summary>{{ t.objetivo }}</summary>
+          <dl class="kv small"><dt>Precondiciones</dt><dd class="pre">{{ t.precondiciones or '—' }}</dd><dt>Procedimiento</dt><dd class="pre">{{ t.procedimiento or '—' }}</dd><dt>Esperado</dt><dd class="pre">{{ t.resultado_esperado or '—' }}</dd><dt>Obtenido</dt><dd class="pre">{{ t.resultado_obtenido or '—' }}</dd><dt>Observaciones</dt><dd class="pre">{{ t.observaciones or '—' }}</dd><dt>Siguiente acción</dt><dd>{{ t.siguiente_accion or '—' }}</dd><dt>Evidencia</dt><dd>{{ m.evidence_links(t.evidencia) }}</dd></dl>
+        </details></td>
+        <td>{{ m.badge(t.estado, 'Sin estado') }}</td>
+        <td class="small">{{ t.responsable or '—' }}</td>
+        <td class="mono small">{{ t.incidencia or '—' }}</td>
+        <td class="nowrap right">
+          {% if t.estado in (S.ESTADO_FALLIDO, S.ESTADO_BLOQUEADO) %}<a class="btn btn-sm" href="{{ url_for('main.incidencia_nueva', prueba=t.id) }}">Crear incidencia</a>{% endif %}
+          <a class="btn-icon" href="{{ url_for('main.prueba_editar', tid=t.id) }}" title="Editar"><svg class="i"><use href="#i-edit"/></svg></a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    {{ m.empty('Sin casos de prueba', 'Registre cada caso con su resultado esperado antes de ejecutarlo.', url_for('main.prueba_nueva', sesion=s.sesion_id), 'Nueva prueba') }}
+  {% endif %}
+</section>
+
+{% elif tab == 'incidencias' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Incidencias</h2>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.incidencia_nueva', sesion=s.sesion_id) }}"><svg class="i"><use href="#i-plus"/></svg>Nueva incidencia</a>
+  </div>
+  {% if b.incidencias %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>ID</th><th>Fecha</th><th>Descripción</th><th>Prueba</th><th>Severidad</th><th>Estado</th><th>Responsable</th><th></th></tr></thead>
+    <tbody>
+    {% for i in b.incidencias %}
+      <tr>
+        <td class="mono nowrap"><a href="{{ url_for('main.incidencia_editar', iid=i.id) }}">{{ i.id }}</a>{% if i.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</td>
+        <td class="nowrap">{{ i.fecha }}</td>
+        <td class="truncate-2">{{ i.descripcion }}</td>
+        <td class="mono small">{{ i.prueba_id or '—' }}</td>
+        <td>{{ m.badge(i.severidad) }}</td>
+        <td>{{ m.badge(i.estado) }}</td>
+        <td class="small">{{ i.responsable or '—' }}</td>
+        <td class="nowrap right">
+          {% if i.es_ejemplo %}
+          <form method="post" action="{{ url_for('main.eliminar_ejemplo') }}" class="inline" data-confirm="Se vaciará la fila de ejemplo {{ i.id }} en el libro. El contenido queda en el historial. ¿Continuar?">
+            {{ m.csrf() }}<input type="hidden" name="tipo" value="Incidencia"><input type="hidden" name="id" value="{{ i.id }}"><input type="hidden" name="sesion_id" value="{{ s.sesion_id }}"><input type="hidden" name="confirmar" value="si">
+            <button class="btn-icon" title="Eliminar fila de ejemplo"><svg class="i"><use href="#i-trash"/></svg></button>
+          </form>
+          {% endif %}
+          <a class="btn-icon" href="{{ url_for('main.incidencia_editar', iid=i.id) }}" title="Editar"><svg class="i"><use href="#i-edit"/></svg></a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+    {{ m.empty('Sin incidencias', 'Las incidencias pueden crearse desde una prueba fallida o bloqueada.', url_for('main.incidencia_nueva', sesion=s.sesion_id), 'Nueva incidencia') }}
+  {% endif %}
+</section>
+
+{% elif tab == 'evidencias' %}
+<section class="panel">
+  <div class="panel-head"><h2>Adjuntar evidencia</h2></div>
+  <form method="post" enctype="multipart/form-data" action="{{ url_for('main.evidencia_subir', sid=s.sesion_id) }}" class="form">
+    {{ m.csrf() }}
+    <div class="form-grid">
+      <div class="field"><label for="ev-tipo">Asociar a</label>
+        <select id="ev-tipo" name="tipo_registro" data-ev-type>{% for t in record_types %}<option>{{ t }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="ev-reg">Registro</label>
+        <select id="ev-reg" name="registro_id" data-ev-record>
+          <option value="" data-type="Visita">Visita {{ s.sesion_id }}</option>
+          {% for r in b.revisiones %}<option value="{{ r.item }}" data-type="Revisión física">{{ r.item }}</option>{% endfor %}
+          {% for t in b.pruebas %}<option value="{{ t.id }}" data-type="Prueba">{{ t.id }} · {{ t.objetivo|truncate(50) }}</option>{% endfor %}
+          {% for i in b.incidencias %}<option value="{{ i.id }}" data-type="Incidencia">{{ i.id }} · {{ i.descripcion|truncate(50) }}</option>{% endfor %}
+        </select></div>
+      <div class="field wide"><label for="ev-file">Archivo</label><input id="ev-file" type="file" name="archivo" required></div>
+      <div class="field wide"><label for="ev-desc">Descripción</label><input id="ev-desc" name="descripcion" maxlength="500" placeholder="Foto de conexión MDB, log del sniffer…"></div>
+    </div>
+    <p class="note small">No adjunte credenciales, claves ni datos completos de tarjetas. Revise y redacte los logs de transacciones antes de guardarlos.</p>
+    <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary"><svg class="i"><use href="#i-upload"/></svg>Adjuntar</button></div>
+  </form>
+</section>
+<section class="panel">
+  <div class="panel-head"><h2>Archivos de la sesión</h2><span class="muted small">data/evidencias/{{ s.sesion_id }}/</span></div>
+  {% if b.evidencias %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Archivo</th><th>Asociado a</th><th>Descripción</th><th class="num">Tamaño</th><th>Fecha</th></tr></thead>
+    <tbody>
+    {% for e in b.evidencias %}
+      <tr>
+        <td><a class="file-link" href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-file"/></svg>{{ e.archivo }}</a>
+          {% if e.advertencia %}<div class="field-error small">{{ e.advertencia }}</div>{% endif %}</td>
+        <td class="small">{{ e.tipo_registro }} <span class="mono">{{ e.registro_id }}</span></td>
+        <td class="small">{{ e.descripcion or '—' }}</td>
+        <td class="num small">{{ e.tamano|tamano }}</td>
+        <td class="small nowrap">{{ e.fecha }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Aún no hay evidencias adjuntas.</p>{% endif %}
+</section>
+
+{% elif tab == 'historial' %}
+<section class="panel">
+  <div class="panel-head"><h2>Historial de cambios</h2></div>
+  {% if b.historial %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Fecha</th><th>Registro</th><th>Acción</th><th>Campo</th><th>Anterior</th><th>Nuevo</th></tr></thead>
+    <tbody>
+    {% for h in b.historial|reverse %}
+      <tr>
+        <td class="nowrap small">{{ h.fecha }}</td>
+        <td class="small">{{ h.tipo_registro }} <span class="mono">{{ h.registro_id }}</span></td>
+        <td class="small">{{ h.accion }}</td>
+        <td class="small">{{ h.campo or '—' }}</td>
+        <td class="small pre muted">{{ h.anterior|truncate(120) }}</td>
+        <td class="small pre">{{ h.nuevo|truncate(120) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted">Sin cambios registrados por la aplicación.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Identificación y versiones{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Identificación y versiones</h1><p class="muted">Equipos y versiones exactas registradas en cada sesión.</p></div>
+</div>
+<form class="filters" method="get">
+  <div class="field grow"><label for="id-q">Buscar</label><input id="id-q" type="search" name="q" value="{{ f.q }}" placeholder="Serial, modelo, firmware…"></div>
+  <div class="field"><label for="id-fw">Firmware</label><select id="id-fw" name="firmware"><option value="">Todos</option>{% for o in options.firmware %}<option {{ 'selected' if f.firmware == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="id-fab">Fabricante</label><select id="id-fab" name="fabricante"><option value="">Todos</option>{% for o in options.fabricante %}<option {{ 'selected' if f.fabricante == o }}>{{ o }}</option>{% endfor %}</select></div>
+  <div class="filters-actions"><button class="btn btn-primary btn-sm">Filtrar</button>{% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.identificacion') }}">Limpiar</a>{% endif %}</div>
+</form>
+{% if rows %}
+<div class="table-wrap">
+<table class="table">
+  <thead><tr><th>Sesión</th><th>Máquina</th><th>POS</th><th>Firmware</th><th>MDB (estándar / versión / módulo)</th><th>Financiera</th><th>Agente Polaris</th><th>Compatibilidad</th><th></th></tr></thead>
+  <tbody>
+  {% for s in rows %}
+    <tr>
+      <td class="mono nowrap"><a href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a><div class="muted small">{{ s.fecha }}</div></td>
+      <td>{{ s.fabricante or '—' }} {{ s.modelo_maquina }}<div class="muted small mono">{{ s.serial_maquina }}</div></td>
+      <td>{{ s.modelo_pos or '—' }}<div class="muted small mono">{{ s.serial_pos }}</div></td>
+      <td class="mono">{{ s.firmware or '—' }}</td>
+      <td class="small">{{ s.mdb_estandar or '—' }} / {{ s.mdb_version or '—' }} / {{ s.mdb_modulo or '—' }}</td>
+      <td class="mono small">{{ s.version_financiera or '—' }}</td>
+      <td class="mono small">{{ s.version_polaris or '—' }}</td>
+      <td class="small">{{ s.compatibilidad or '—' }}</td>
+      <td class="right"><a class="btn-icon" href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}" title="Editar"><svg class="i"><use href="#i-edit"/></svg></a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}{{ m.empty('Sin registros', 'No hay sesiones que coincidan.') }}{% endif %}
+{% endblock %}

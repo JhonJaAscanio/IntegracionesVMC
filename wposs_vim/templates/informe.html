@@ -1,0 +1,78 @@
+{% import "_macros.html" as m with context %}
+{% set s = b.sesion %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informe {{ s.sesion_id }} · WPOSS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body class="report">
+<div class="report-actions no-print">
+  <button class="btn btn-primary" type="button" data-print>Imprimir / Guardar como PDF</button>
+  <a class="btn" href="{{ url_for('main.cierre', sid=s.sesion_id) }}">Volver</a>
+</div>
+<article class="report-page">
+  <header class="report-head">
+    <div>
+      <p class="muted small">WPOSS · Checklist de Pruebas y Validación Técnica — Vending NEW5320</p>
+      <h1>Informe de cierre · {{ s.sesion_id }}</h1>
+      <p>{{ s.cliente or '—' }} · Visita {{ s.fecha or '—' }}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
+    </div>
+    <div class="report-concept">
+      <span class="muted small">Concepto final</span>
+      <strong>{{ b.cierre.concepto if b.cierre and b.cierre.concepto else 'Sin cierre registrado' }}</strong>
+      {% if b.cierre %}<span class="small">{{ b.cierre.fecha_cierre }} · {{ b.cierre.responsable_cierre }}</span>{% endif %}
+    </div>
+  </header>
+
+  <h2>Equipos y versiones</h2>
+  <table class="table compact">
+    <tr><th>Máquina</th><td>{{ s.fabricante }} {{ s.modelo_maquina }} (Serial {{ s.serial_maquina or '—' }})</td></tr>
+    <tr><th>POS</th><td>{{ s.modelo_pos }} (Serial {{ s.serial_pos or '—' }}) · Firmware {{ s.firmware or '—' }}</td></tr>
+    <tr><th>MDB</th><td>{{ s.mdb_estandar or '—' }} / {{ s.mdb_version or '—' }} / {{ s.mdb_modulo or '—' }}</td></tr>
+    <tr><th>Financiera · Agente Polaris</th><td>{{ s.version_financiera or '—' }} · {{ s.version_polaris or '—' }}</td></tr>
+    <tr><th>Responsable · Participantes</th><td>{{ s.responsable or '—' }} · {{ s.participantes or '—' }}</td></tr>
+    <tr><th>Objetivo</th><td>{{ s.objetivo or '—' }}</td></tr>
+  </table>
+
+  <h2>Resultado</h2>
+  <table class="table compact">
+    <tr><th>Planificadas</th><th>Ejecutadas</th><th>Aprobadas</th><th>Fallidas</th><th>Bloqueadas</th><th>Pendientes</th><th>Incidencias abiertas</th></tr>
+    <tr><td>{{ totals.planificadas }}</td><td>{{ totals.ejecutadas }}</td><td>{{ totals.aprobadas }}</td><td>{{ totals.fallidas }}</td><td>{{ totals.bloqueadas }}</td><td>{{ totals.pendientes }}</td><td>{{ totals.incidencias_abiertas }}</td></tr>
+  </table>
+  {% if ev.bloqueos %}<p class="small"><strong>Criterios no cumplidos para “Apto para piloto”:</strong> {{ ev.bloqueos|join(' ') }}</p>{% endif %}
+
+  {% if b.revisiones %}
+  <h2>Revisión física y eléctrica</h2>
+  <table class="table compact">
+    <tr><th>Ítem</th><th>Resultado</th><th>Observaciones</th></tr>
+    {% for r in b.revisiones %}<tr><td>{{ r.item }}</td><td>{{ r.resultado or '—' }}</td><td>{{ r.observaciones }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  <h2>Casos de prueba</h2>
+  <table class="table compact">
+    <tr><th>ID</th><th>Componente</th><th>Objetivo</th><th>Resultado obtenido</th><th>Estado</th></tr>
+    {% for t in b.pruebas %}<tr><td class="mono">{{ t.id }}</td><td>{{ t.componente }}</td><td>{{ t.objetivo }}</td><td>{{ t.resultado_obtenido }}</td><td>{{ t.estado or '—' }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">Sin pruebas registradas.</td></tr>{% endfor %}
+  </table>
+
+  <h2>Incidencias</h2>
+  <table class="table compact">
+    <tr><th>ID</th><th>Descripción</th><th>Severidad</th><th>Estado</th><th>Responsable</th></tr>
+    {% for i in b.incidencias %}<tr><td class="mono">{{ i.id }}</td><td>{{ i.descripcion }}</td><td>{{ i.severidad }}</td><td>{{ i.estado }}</td><td>{{ i.responsable }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">Sin incidencias.</td></tr>{% endfor %}
+  </table>
+
+  {% if b.cierre %}
+  <h2>Cobertura y pendientes</h2>
+  <p class="small"><strong>Versiones y equipos cubiertos:</strong> {{ b.cierre.versiones_cubiertas or '—' }}</p>
+  <p class="small"><strong>Pendientes:</strong> {{ b.cierre.pendientes_area or '—' }}</p>
+  {% endif %}
+  <p class="muted small report-foot">Un cierre satisfactorio aplica únicamente al alcance y combinación de equipos y versiones efectivamente probados. Generado {{ generado }}.</p>
+</article>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

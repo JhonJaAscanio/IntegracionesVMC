@@ -1,0 +1,253 @@
+"""Esquema del libro WPOSS: hojas, columnas y catálogos.
+
+Las columnas se localizan por el texto del encabezado (fila 1), no por su
+posición, para tolerar que alguien reordene columnas en Excel. Las claves
+internas (snake_case) son las que usa el resto de la aplicación.
+"""
+
+SHEET_INSTRUCCIONES = "Instrucciones"
+SHEET_LISTAS = "Listas"
+SHEET_ID = "Identificación y Versiones"
+SHEET_REVISION = "Revisión Física y Eléctrica"
+SHEET_CASOS = "Casos de Prueba"
+SHEET_INCIDENCIAS = "Incidencias"
+SHEET_CIERRE = "Cierre de Sesión"
+
+# Hojas propias de la aplicación (se agregan a la copia de trabajo).
+SHEET_APP_SESIONES = "App_Sesiones"
+SHEET_APP_EVIDENCIAS = "App_Evidencias"
+SHEET_APP_HISTORIAL = "App_Historial"
+SHEET_APP_CONTADORES = "App_Contadores"
+
+ORIGINAL_SHEETS = [
+    SHEET_INSTRUCCIONES, SHEET_LISTAS, SHEET_ID, SHEET_REVISION,
+    SHEET_CASOS, SHEET_INCIDENCIAS, SHEET_CIERRE,
+]
+APP_SHEETS = [SHEET_APP_SESIONES, SHEET_APP_EVIDENCIAS, SHEET_APP_HISTORIAL, SHEET_APP_CONTADORES]
+
+# (clave, encabezado exacto). Las marcadas como "added" no existen en el
+# libro original y se agregan al final de la hoja durante la migración.
+ID_COLUMNS = [
+    ("sesion_id", "Sesión ID"),
+    ("fecha", "Fecha"),
+    ("hora", "Hora"),
+    ("responsable", "Responsable"),
+    ("participantes", "Participantes"),
+    ("cliente", "Cliente / Piloto"),
+    ("fabricante", "Fabricante máquina"),
+    ("modelo_maquina", "Modelo máquina"),
+    ("serial_maquina", "Serial máquina"),
+    ("modelo_pos", "Modelo POS"),
+    ("serial_pos", "Serial POS"),
+    ("objetivo", "Objetivo de la sesión"),
+    ("tipo_prueba", "Tipo de prueba"),
+    ("firmware", "Firmware NEW5320"),
+    ("mdb_estandar", "MDB — Estándar / Especificación"),
+    ("mdb_version", "MDB — Versión de implementación"),
+    ("mdb_modulo", "MDB — Módulo de software"),
+    ("version_financiera", "Versión Financiera"),
+    ("version_polaris", "Versión Agente Polaris"),
+    ("configuraciones", "Configuraciones relevantes"),
+    ("version_anterior", "Versión anterior (si aplica)"),
+    ("version_nueva", "Versión nueva (si aplica)"),
+    ("fecha_instalacion", "Fecha de instalación"),
+    ("checksum", "Identificador de compilación / checksum"),
+    ("compatibilidad", "Compatibilidad prevista"),
+    ("observaciones", "Observaciones"),
+    ("pais", "País"),
+    ("ciudad", "Ciudad"),
+]
+ID_ADDED = ["pais", "ciudad"]
+
+REVISION_COLUMNS = [
+    ("sesion_id", "Sesión ID"),
+    ("item", "Ítem de revisión"),
+    ("resultado", "Resultado"),
+    ("evidencia", "Evidencia"),
+    ("observaciones", "Observaciones"),
+]
+
+CASOS_COLUMNS = [
+    ("id", "ID de prueba"),
+    ("sesion_id", "Sesión ID"),
+    ("componente", "Componente"),
+    ("tipo_verificacion", "Tipo de verificación"),
+    ("objetivo", "Objetivo"),
+    ("precondiciones", "Precondiciones"),
+    ("procedimiento", "Procedimiento"),
+    ("resultado_esperado", "Resultado esperado"),
+    ("resultado_obtenido", "Resultado obtenido"),
+    ("estado", "Estado"),
+    ("evidencia", "Evidencia"),
+    ("observaciones", "Observaciones"),
+    ("responsable", "Responsable"),
+    ("incidencia", "Incidencia asociada"),
+    ("siguiente_accion", "Siguiente acción"),
+]
+
+INCIDENCIAS_COLUMNS = [
+    ("id", "ID"),
+    ("fecha", "Fecha"),
+    ("sesion_id", "Sesión ID"),
+    ("componente_version", "Componente y versión"),
+    ("descripcion", "Descripción"),
+    ("pasos", "Pasos para reproducir"),
+    ("resultado_esperado", "Resultado esperado"),
+    ("resultado_obtenido", "Resultado obtenido"),
+    ("severidad", "Severidad / Prioridad"),
+    ("evidencia", "Evidencia"),
+    ("responsable", "Responsable"),
+    ("ticket", "Ticket"),
+    ("siguiente_accion", "Siguiente acción"),
+    ("estado", "Estado"),
+    ("resultado_reprueba", "Resultado de la reprueba"),
+    ("prueba_id", "ID de prueba asociada"),
+]
+INCIDENCIAS_ADDED = ["prueba_id"]
+
+CIERRE_COLUMNS = [
+    ("sesion_id", "Sesión ID"),
+    ("fecha_cierre", "Fecha de cierre"),
+    ("fecha_visita", "Fecha de la visita"),
+    ("cliente", "Cliente / Comercio"),
+    ("fabricante", "Fabricante máquina"),
+    ("modelo_maquina", "Modelo máquina"),
+    ("serial_maquina", "Serial máquina"),
+    ("modelo_pos", "Modelo POS"),
+    ("serial_pos", "Serial POS"),
+    ("firmware", "Firmware NEW5320"),
+    ("mdb_estandar", "MDB — Estándar"),
+    ("mdb_version", "MDB — Versión"),
+    ("mdb_modulo", "MDB — Módulo"),
+    ("version_financiera", "Versión Financiera"),
+    ("version_polaris", "Versión Agente Polaris"),
+    ("participantes", "Participantes"),
+    ("responsable", "Responsable de la sesión"),
+    ("objetivo", "Objetivo de la sesión"),
+    ("total_planificadas", "Total planificadas"),
+    ("total_ejecutadas", "Total ejecutadas"),
+    ("aprobadas", "Aprobadas"),
+    ("fallidas", "Fallidas"),
+    ("bloqueadas", "Bloqueadas"),
+    ("pendientes", "Pendientes"),
+    ("incidencias_abiertas", "Incidencias abiertas"),
+    ("versiones_cubiertas", "Versiones y equipos cubiertos"),
+    ("pendientes_area", "Pendientes (Fabricante/Desarrollo/QA/Cliente)"),
+    ("concepto", "Concepto final"),
+    ("responsable_cierre", "Responsable del cierre"),
+    ("resumen", "Resumen para correo"),
+]
+# Columnas del cierre que el usuario diligencia; el resto son fórmulas.
+CIERRE_INPUT_KEYS = ["sesion_id", "fecha_cierre", "versiones_cubiertas",
+                     "pendientes_area", "concepto", "responsable_cierre"]
+
+APP_SESIONES_COLUMNS = [
+    ("sesion_id", "Sesión ID"),
+    ("estado_registro", "Estado de registro"),
+    ("creado", "Creado"),
+    ("modificado", "Modificado"),
+    ("origen", "Origen"),
+]
+APP_EVIDENCIAS_COLUMNS = [
+    ("id", "ID"),
+    ("sesion_id", "Sesión ID"),
+    ("tipo_registro", "Tipo de registro"),
+    ("registro_id", "ID de registro"),
+    ("archivo", "Archivo"),
+    ("ruta", "Ruta relativa"),
+    ("tamano", "Tamaño (bytes)"),
+    ("sha256", "SHA-256"),
+    ("tipo_archivo", "Tipo de archivo"),
+    ("descripcion", "Descripción"),
+    ("advertencia", "Advertencia"),
+    ("fecha", "Fecha de carga"),
+]
+APP_HISTORIAL_COLUMNS = [
+    ("fecha", "Fecha"),
+    ("tipo_registro", "Tipo de registro"),
+    ("registro_id", "ID de registro"),
+    ("sesion_id", "Sesión ID"),
+    ("campo", "Campo"),
+    ("anterior", "Valor anterior"),
+    ("nuevo", "Valor nuevo"),
+    ("accion", "Acción"),
+]
+APP_CONTADORES_COLUMNS = [
+    ("prefijo", "Prefijo"),
+    ("ultimo", "Último número"),
+]
+
+SHEET_COLUMNS = {
+    SHEET_ID: ID_COLUMNS,
+    SHEET_REVISION: REVISION_COLUMNS,
+    SHEET_CASOS: CASOS_COLUMNS,
+    SHEET_INCIDENCIAS: INCIDENCIAS_COLUMNS,
+    SHEET_CIERRE: CIERRE_COLUMNS,
+    SHEET_APP_SESIONES: APP_SESIONES_COLUMNS,
+    SHEET_APP_EVIDENCIAS: APP_EVIDENCIAS_COLUMNS,
+    SHEET_APP_HISTORIAL: APP_HISTORIAL_COLUMNS,
+    SHEET_APP_CONTADORES: APP_CONTADORES_COLUMNS,
+}
+
+# Encabezados de la hoja Listas (catálogos). Los tres últimos se agregan.
+CATALOGS = [
+    ("estados", "Estados"),
+    ("severidad", "Severidad"),
+    ("tipo_verificacion", "Tipo de verificación"),
+    ("componente", "Componente"),
+    ("tipo_prueba", "Tipo de prueba (sesión)"),
+    ("estado_incidencia", "Estado de incidencia"),
+    ("concepto", "Concepto final"),
+    ("pais", "País"),
+    ("fabricante", "Fabricante máquina"),
+    ("item_revision", "Ítem de revisión física"),
+]
+CATALOGS_ADDED = ["pais", "fabricante", "item_revision"]
+CATALOG_LABELS = dict(CATALOGS)
+
+# Catálogos cuyos valores no deben ampliarse desde la interfaz porque la
+# lógica de cálculo del cierre depende de ellos (fórmulas del libro).
+CATALOGS_FIXED = ["estados", "estado_incidencia", "concepto"]
+
+# Valores semilla de los catálogos nuevos. Los ítems de revisión son los
+# del libro original; los países son un punto de partida ampliable.
+SEED_PAISES = ["Colombia", "Ecuador", "Perú", "Panamá", "México", "Chile",
+               "Guatemala", "Costa Rica", "República Dominicana", "Otro"]
+
+# Validaciones de lista del libro original (hoja, columna, catálogo).
+# openpyxl elimina las validaciones de extensión x14 al guardar, por eso
+# se regeneran en cada escritura como validaciones estándar equivalentes.
+DATA_VALIDATIONS = [
+    (SHEET_ID, "tipo_prueba", "tipo_prueba"),
+    (SHEET_ID, "pais", "pais"),
+    (SHEET_REVISION, "resultado", "estados"),
+    (SHEET_CASOS, "componente", "componente"),
+    (SHEET_CASOS, "tipo_verificacion", "tipo_verificacion"),
+    (SHEET_CASOS, "estado", "estados"),
+    (SHEET_INCIDENCIAS, "severidad", "severidad"),
+    (SHEET_INCIDENCIAS, "estado", "estado_incidencia"),
+    (SHEET_CIERRE, "concepto", "concepto"),
+]
+DV_MAX_ROW = 2000
+
+# Valores con significado en el cálculo del cierre (fórmulas originales).
+ESTADO_APROBADO = "Aprobado"
+ESTADO_FALLIDO = "Fallido"
+ESTADO_BLOQUEADO = "Bloqueado"
+ESTADO_PENDIENTE = "Pendiente"
+INCIDENCIA_ABIERTA = "Abierto"
+INCIDENCIA_CERRADA = "Cerrado"
+CONCEPTO_APTO = "Apto para piloto"
+CONCEPTO_CONDICIONES = "Apto con condiciones"
+CONCEPTO_NO_APTO = "No apto"
+CONCEPTO_PENDIENTE = "Pendiente"
+
+ESTADO_REGISTRO_BORRADOR = "Borrador"
+ESTADO_REGISTRO_EN_CURSO = "En curso"
+ESTADO_REGISTRO_CERRADA = "Cerrada"
+
+PENDIENTE_CONFIRMAR = "Pendiente de confirmar"
+EXAMPLE_MARKER = "fila de ejemplo"
+
+# Colores del libro original.
+COLOR_CALC = "FFE2EFEA"   # celda calculada (verde claro)

@@ -1,0 +1,74 @@
+{
+  "servidor": {
+    "host": "127.0.0.1",
+    "puerto": 5000
+  },
+  "excel": {
+    "original": "WPOSS_Checklist_Pruebas_Vending_5320.xlsx",
+    "trabajo": "data/trabajo/WPOSS_Vending_Datos.xlsx"
+  },
+  "carpetas": {
+    "datos": "data",
+    "evidencias": "data/evidencias",
+    "pendientes": "data/pendientes",
+    "exportaciones": "data/exportaciones",
+    "respaldos": "respaldos",
+    "logs": "logs"
+  },
+  "respaldos": {
+    "intervalo_minutos": 60,
+    "retener": 30
+  },
+  "evidencias": {
+    "tamano_maximo_mb": 25,
+    "extensiones": [
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+      "webp",
+      "bmp",
+      "heic",
+      "pdf",
+      "txt",
+      "log",
+      "csv",
+      "json",
+      "xml",
+      "bin",
+      "hex",
+      "zip",
+      "7z",
+      "doc",
+      "docx",
+      "xls",
+      "xlsx",
+      "mp4",
+      "mov"
+    ]
+  },
+  "datos": {
+    "excluir_ejemplos": true
+  },
+  "cierre": {
+    "apto_requiere_cero_fallidas": true,
+    "apto_requiere_cero_bloqueadas": true,
+    "apto_requiere_cero_pendientes": true,
+    "apto_requiere_cero_incidencias_abiertas": true,
+    "apto_requiere_revision_fisica_sin_fallos": true,
+    "condiciones_requiere_pendientes_documentados": true,
+    "componentes_criticos": []
+  },
+  "pruebas": {
+    "prefijos": {
+      "Máquina Vending": "MAQ",
+      "POS NEW5320": "POS",
+      "MDB": "MDB",
+      "Financiera": "FIN",
+      "Agente Polaris": "AGP",
+      "Operación / Dispensación": "VEN",
+      "Otro": "OTR"
+    },
+    "exigir_evidencia_para_aprobar": false
+  }
+}
