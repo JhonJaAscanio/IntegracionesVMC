@@ -95,6 +95,14 @@ def validate_session(data, catalogs, draft, ciudades=None, current=None):
     catalog("pais", catalogs["pais"])
     catalog("cliente", catalogs.get("cliente", []))
     catalog("firmware", catalogs.get("firmware", []) + [S.PENDIENTE_CONFIRMAR])
+    catalog("nivel_maquina", catalogs.get("nivel_maquina", []) + [S.PENDIENTE_CONFIRMAR])
+    catalog("mdb_resultado", catalogs.get("resultado_prueba", []))
+    catalog("dex_resultado", catalogs.get("resultado_prueba", []))
+    catalog("dex_archivo", S.DEX_ARCHIVO_OPCIONES)
+    # Una prueba fallida debe documentar qué se observó o qué error ocurrió.
+    for resultado, observacion in (("mdb_resultado", "mdb_observacion"), ("dex_resultado", "dex_observacion")):
+        if data.get(resultado) == S.RESULTADO_FALLIDA and not data.get(observacion):
+            errors[observacion] = "Describa el error observado en la prueba fallida."
     if ciudades is not None and data.get("ciudad") and (
             data["ciudad"] != current.get("ciudad") or data.get("pais") != current.get("pais")):
         if not data.get("pais"):

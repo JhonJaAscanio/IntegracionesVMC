@@ -45,14 +45,14 @@ def _globals():
 @bp.app_template_filter("estado_clase")
 def estado_clase(value):
     v = (value or "").strip()
-    if v in (S.ESTADO_APROBADO, S.CONCEPTO_APTO, S.INCIDENCIA_CERRADA, S.ESTADO_REGISTRO_CERRADA):
+    if v in (S.ESTADO_APROBADO, S.CONCEPTO_APTO, S.INCIDENCIA_CERRADA, S.ESTADO_REGISTRO_CERRADA, "Exitosa"):
         return "ok"
-    if v in (S.ESTADO_FALLIDO, S.CONCEPTO_NO_APTO, "Crítica"):
+    if v in (S.ESTADO_FALLIDO, S.CONCEPTO_NO_APTO, "Crítica", S.RESULTADO_FALLIDA):
         return "bad"
     if v in (S.ESTADO_BLOQUEADO, "Alta"):
         return "block"
     if v in (S.ESTADO_PENDIENTE, S.CONCEPTO_CONDICIONES, S.INCIDENCIA_ABIERTA, "En progreso",
-             "Pendiente de reprueba", "En observación", S.ESTADO_REGISTRO_BORRADOR, "Media"):
+             "Pendiente de reprueba", "En observación", S.ESTADO_REGISTRO_BORRADOR, "Media", "No realizada"):
         return "warn"
     return "neutral"
 
@@ -161,6 +161,7 @@ VISIT_UPLOAD_FIELDS = [
     ("capturas", "Captura de pantalla", "Capturas de pantalla", "image/*"),
     ("logs_new5320", "Log del POS NEW5320", "Logs del POS NEW5320", LOG_ACCEPT),
     ("logs_qibixx", "Log de Qibixx", "Logs de Qibixx", LOG_ACCEPT),
+    ("archivos_dex", "Archivo DEX", "Archivos DEX (auditoría de la máquina)", LOG_ACCEPT + ",.dex"),
     ("logs", "Log de la visita", "Otros logs de la visita (sniffer, diagnóstico)", LOG_ACCEPT),
     ("documentos", "Documento", "Documentos", ""),
 ]
@@ -233,7 +234,8 @@ def visita(sid):
     data = service.data()
     return render_template("visita_detalle.html", b=bundle, tab=tab, cat=data.catalogos,
                            totals=service.totals(sid, data), ev=service.evaluate_closure(sid, data),
-                           record_types=RECORD_TYPES, upload_categories=UPLOAD_CATEGORIES, active="visitas")
+                           record_types=RECORD_TYPES, upload_categories=UPLOAD_CATEGORIES,
+                           legacy_fields=service.legacy_fields(bundle["sesion"]), active="visitas")
 
 
 # --------------------------------------------------------------------------

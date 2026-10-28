@@ -34,7 +34,7 @@ DEFAULT_CONFIG = {
         # Máximo total por envío del formulario (varios archivos a la vez).
         "tamano_maximo_solicitud_mb": 200,
         "extensiones": ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic",
-                        "pdf", "txt", "log", "csv", "json", "xml", "bin", "hex",
+                        "pdf", "txt", "log", "csv", "json", "xml", "bin", "hex", "dex",
                         "zip", "7z", "doc", "docx", "xls", "xlsx", "mp4", "mov"],
     },
     "datos": {

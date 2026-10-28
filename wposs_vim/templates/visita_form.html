@@ -16,7 +16,7 @@
     <li><button type="button" data-step-to="0"><span>1</span>Visita</button></li>
     <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
     <li><button type="button" data-step-to="2"><span>3</span>Software</button></li>
-    <li><button type="button" data-step-to="3"><span>4</span>Instalación y notas</button></li>
+    <li><button type="button" data-step-to="3"><span>4</span>Pruebas MDB y DEX</button></li>
     {% if not sid %}<li><button type="button" data-step-to="4"><span>5</span>Evidencias</button></li>{% endif %}
   </ol>
 
@@ -44,6 +44,8 @@
         {{ m.input('fabricante', 'Fabricante', v, errors, required=True, list='dl-fabricantes', pc=True, help='Si es un fabricante nuevo se agrega al catálogo.') }}
         {{ m.input('modelo_maquina', 'Modelo', v, errors, required=True, pc=True) }}
         {{ m.input('serial_maquina', 'Serial', v, errors, pc=True) }}
+        {{ m.input('codigo_fabricante', 'Código del fabricante', v, errors, pc=True, help='Código o referencia asignado por el fabricante.') }}
+        {{ m.select('nivel_maquina', 'Nivel de la máquina', cat.nivel_maquina, v, errors, extra=[S.PENDIENTE_CONFIRMAR], help='Nivel MDB que reporta la máquina (VMC).') }}
       </div>
     </fieldset>
     <fieldset class="subsection">
@@ -61,9 +63,8 @@
     <h2>Versiones de software</h2>
     <p class="muted small">Registre las versiones exactas. Si un dato no se conoce, use “Pendiente” e indique en Observaciones quién debe confirmarlo.</p>
     <div class="form-grid">
-      {{ m.input('mdb_estandar', 'MDB — Estándar / Especificación', v, errors, pc=True) }}
-      {{ m.input('mdb_version', 'MDB — Versión de implementación', v, errors, pc=True) }}
-      {{ m.input('mdb_modulo', 'MDB — Módulo de software', v, errors, pc=True) }}
+      {{ m.input('version_maquina', 'Versión de la máquina', v, errors, pc=True, help='Software o firmware de la máquina vending (VMC).') }}
+      {{ m.input('version_gateway', 'Versión del gateway MDB', v, errors, pc=True) }}
       {{ m.input('version_financiera', 'Versión Financiera', v, errors, pc=True) }}
       {{ m.input('version_polaris', 'Versión Agente Polaris', v, errors, pc=True) }}
       {{ m.textarea('configuraciones', 'Configuraciones relevantes', v, errors, rows=2, pc=True) }}
@@ -71,15 +72,31 @@
   </section>
 
   <section class="form-section" data-step>
-    <h2>Instalación y observaciones</h2>
-    <div class="form-grid">
-      {{ m.input('version_anterior', 'Versión anterior (si aplica)', v, errors, placeholder='N/A') }}
-      {{ m.input('version_nueva', 'Versión nueva (si aplica)', v, errors, placeholder='N/A') }}
-      {{ m.input('fecha_instalacion', 'Fecha de instalación', v, errors, placeholder='AAAA-MM-DD o N/A') }}
-      {{ m.input('checksum', 'Identificador de compilación / checksum', v, errors, placeholder='N/A') }}
-      {{ m.input('compatibilidad', 'Compatibilidad prevista', v, errors, pc=True) }}
-      {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=3) }}
-    </div>
+    <h2>Pruebas MDB y DEX</h2>
+    <p class="muted small">Resultado general de cada prueba en la visita. El detalle por caso se registra en “Casos de prueba”.</p>
+    <fieldset class="subsection">
+      <legend>Prueba MDB</legend>
+      <div class="form-grid">
+        {{ m.select('mdb_resultado', 'Resultado', cat.resultado_prueba, v, errors, help='Si es Fallida, describa el error.') }}
+        {{ m.textarea('mdb_observacion', 'Qué se observó / error ocurrido', v, errors, rows=3, help='Comportamiento del bus MDB, respuestas del VMC, mensajes de error, códigos…') }}
+      </div>
+    </fieldset>
+    <fieldset class="subsection">
+      <legend>Prueba DEX</legend>
+      <div class="form-grid">
+        {{ m.select('dex_resultado', 'Resultado', cat.resultado_prueba, v, errors, help='Si es Fallida, describa el error.') }}
+        {{ m.select('dex_archivo', 'Archivo DEX obtenido', S.DEX_ARCHIVO_OPCIONES, v, errors, help='Si se obtuvo, adjúntelo en Evidencias.') }}
+        {{ m.input('dex_customer_id', 'Customer ID DEX', v, errors, pc=True) }}
+        {{ m.input('dex_provider_id', 'Provider ID DEX', v, errors, pc=True) }}
+        {{ m.textarea('dex_observacion', 'Qué se observó / error ocurrido', v, errors, rows=3, help='Lectura del archivo de auditoría, conexión, errores…') }}
+      </div>
+    </fieldset>
+    <fieldset class="subsection">
+      <legend>Observaciones generales</legend>
+      <div class="form-grid">
+        {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=3) }}
+      </div>
+    </fieldset>
   </section>
 
   {% if not sid %}

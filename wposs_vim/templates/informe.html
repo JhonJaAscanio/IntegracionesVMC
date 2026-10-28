@@ -31,8 +31,12 @@
   <table class="table compact">
     <tr><th>Máquina</th><td>{{ s.fabricante }} {{ s.modelo_maquina }} (Serial {{ s.serial_maquina or '—' }})</td></tr>
     <tr><th>POS</th><td>{{ s.modelo_pos }} (Serial {{ s.serial_pos or '—' }}) · Firmware {{ s.firmware or '—' }}</td></tr>
-    <tr><th>MDB</th><td>{{ s.mdb_estandar or '—' }} / {{ s.mdb_version or '—' }} / {{ s.mdb_modulo or '—' }}</td></tr>
+    <tr><th>Código fabricante · Nivel</th><td>{{ s.codigo_fabricante or '—' }} · {{ s.nivel_maquina or '—' }}</td></tr>
+    <tr><th>Versión máquina · Gateway MDB</th><td>{{ s.version_maquina or '—' }} · {{ s.version_gateway or '—' }}</td></tr>
+    {% if s.mdb_estandar or s.mdb_version or s.mdb_modulo %}<tr><th>MDB (formulario anterior)</th><td>{{ s.mdb_estandar or '—' }} / {{ s.mdb_version or '—' }} / {{ s.mdb_modulo or '—' }}</td></tr>{% endif %}
     <tr><th>Financiera · Agente Polaris</th><td>{{ s.version_financiera or '—' }} · {{ s.version_polaris or '—' }}</td></tr>
+    <tr><th>Prueba MDB</th><td>{{ s.mdb_resultado or 'Sin registrar' }}{{ ' — ' ~ s.mdb_observacion if s.mdb_observacion }}</td></tr>
+    <tr><th>Prueba DEX</th><td>{{ s.dex_resultado or 'Sin registrar' }}{% if s.dex_archivo %} · archivo: {{ s.dex_archivo }}{% endif %}{{ ' — ' ~ s.dex_observacion if s.dex_observacion }}</td></tr>
     <tr><th>Responsable · Participantes</th><td>{{ s.responsable or '—' }} · {{ s.participantes or '—' }}</td></tr>
     <tr><th>Objetivo</th><td>{{ s.objetivo or '—' }}</td></tr>
   </table>

@@ -57,8 +57,24 @@ ID_COLUMNS = [
     ("pais", "País"),
     ("ciudad", "Ciudad"),
     ("comercio", "Comercio / punto de venta"),
+    ("codigo_fabricante", "Código del fabricante"),
+    ("nivel_maquina", "Nivel de la máquina"),
+    ("version_maquina", "Versión de la máquina"),
+    ("version_gateway", "Versión gateway MDB"),
+    ("mdb_resultado", "Prueba MDB — Resultado"),
+    ("mdb_observacion", "Prueba MDB — Observaciones / error"),
+    ("dex_resultado", "Prueba DEX — Resultado"),
+    ("dex_archivo", "Prueba DEX — Archivo obtenido"),
+    ("dex_customer_id", "Prueba DEX — Customer ID"),
+    ("dex_provider_id", "Prueba DEX — Provider ID"),
+    ("dex_observacion", "Prueba DEX — Observaciones / error"),
 ]
-ID_ADDED = ["pais", "ciudad", "comercio"]
+ID_ADDED = ["pais", "ciudad", "comercio", "codigo_fabricante", "nivel_maquina", "version_maquina",
+            "version_gateway", "mdb_resultado", "mdb_observacion", "dex_resultado", "dex_archivo",
+            "dex_customer_id", "dex_provider_id", "dex_observacion"]
+# Campos del libro que el formulario ya no solicita; se conservan y se muestran si tienen datos.
+ID_LEGACY_FIELDS = ["mdb_estandar", "mdb_version", "mdb_modulo", "version_anterior", "version_nueva",
+                    "fecha_instalacion", "checksum", "compatibilidad"]
 
 REVISION_COLUMNS = [
     ("sesion_id", "Sesión ID"),
@@ -209,9 +225,11 @@ CATALOGS = [
     ("ciudad", "Ciudad"),
     ("ciudad_pais", "País de la ciudad"),
     ("firmware", "Firmware NEW5320"),
+    ("nivel_maquina", "Nivel de la máquina"),
+    ("resultado_prueba", "Resultado de prueba MDB / DEX"),
 ]
 CATALOGS_ADDED = ["pais", "fabricante", "item_revision", "cliente", "cliente_pais",
-                  "ciudad", "ciudad_pais", "firmware"]
+                  "ciudad", "ciudad_pais", "firmware", "nivel_maquina", "resultado_prueba"]
 CATALOG_LABELS = dict(CATALOGS)
 
 # Columnas de Listas que acompañan fila a fila a otro catálogo (no son listas propias).
@@ -242,6 +260,11 @@ SEED_CIUDADES = {
                 "Potosí", "Tarija", "Trinidad", "Cobija"],
 }
 SEED_FIRMWARE = ["13.0.11", "13.0.13", "13.0.14", "13.0.15", "13.0.17", "13.0.22"]
+# Nivel MDB de la VMC (feature level). Ampliable desde Configuración.
+SEED_NIVELES = ["Nivel 1", "Nivel 2", "Nivel 3"]
+RESULTADO_FALLIDA = "Fallida"
+SEED_RESULTADOS = ["Exitosa", RESULTADO_FALLIDA, "No realizada", "No aplica"]
+DEX_ARCHIVO_OPCIONES = ["Sí", "No"]
 
 # Tipos de prueba de la sesión. Reemplazan a los del libro original por decisión de WPOSS;
 # los registros existentes conservan su valor.
@@ -259,6 +282,9 @@ DATA_VALIDATIONS = [
     (SHEET_ID, "ciudad", "ciudad"),
     (SHEET_ID, "cliente", "cliente"),
     (SHEET_ID, "firmware", "firmware"),
+    (SHEET_ID, "nivel_maquina", "nivel_maquina"),
+    (SHEET_ID, "mdb_resultado", "resultado_prueba"),
+    (SHEET_ID, "dex_resultado", "resultado_prueba"),
     (SHEET_REVISION, "resultado", "estados"),
     (SHEET_CASOS, "componente", "componente"),
     (SHEET_CASOS, "tipo_verificacion", "tipo_verificacion"),

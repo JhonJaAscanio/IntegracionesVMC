@@ -386,6 +386,10 @@ def ensure_schema(wb):
                 seeds = [p for p, cities in S.SEED_CIUDADES.items() for _ in cities]
             elif key == "firmware":
                 seeds = list(S.SEED_FIRMWARE)
+            elif key == "nivel_maquina":
+                seeds = list(S.SEED_NIVELES)
+            elif key == "resultado_prueba":
+                seeds = list(S.SEED_RESULTADOS)
             elif key == "fabricante":
                 ident = sheet(wb, S.SHEET_ID)
                 for rec in ident.rows():

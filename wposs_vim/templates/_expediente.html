@@ -25,6 +25,8 @@
       <dt>Fabricante</dt><dd>{{ s.fabricante or '—' }}</dd>
       <dt>Modelo</dt><dd>{{ s.modelo_maquina or '—' }}</dd>
       <dt>Serial</dt><dd>{{ s.serial_maquina or '—' }}</dd>
+      <dt>Código del fabricante</dt><dd>{{ s.codigo_fabricante or '—' }}</dd>
+      <dt>Nivel de la máquina</dt><dd>{{ s.nivel_maquina or '—' }}</dd>
     </dl>
   </div>
   <div>
@@ -40,18 +42,41 @@
 <section class="x-sec">
   <h2>Versiones de software</h2>
   <dl class="x-kv">
-    <dt>MDB — Estándar / Especificación</dt><dd>{{ s.mdb_estandar or '—' }}</dd>
-    <dt>MDB — Versión de implementación</dt><dd>{{ s.mdb_version or '—' }}</dd>
-    <dt>MDB — Módulo de software</dt><dd>{{ s.mdb_modulo or '—' }}</dd>
+    <dt>Versión de la máquina</dt><dd>{{ s.version_maquina or '—' }}</dd>
+    <dt>Versión del gateway MDB</dt><dd>{{ s.version_gateway or '—' }}</dd>
     <dt>Versión Financiera</dt><dd>{{ s.version_financiera or '—' }}</dd>
     <dt>Versión Agente Polaris</dt><dd>{{ s.version_polaris or '—' }}</dd>
     <dt>Configuraciones relevantes</dt><dd class="x-pre">{{ s.configuraciones or '—' }}</dd>
-    <dt>Versión anterior → nueva</dt><dd>{{ s.version_anterior or '—' }} → {{ s.version_nueva or '—' }}</dd>
-    <dt>Fecha de instalación</dt><dd>{{ s.fecha_instalacion or '—' }}</dd>
-    <dt>Compilación / checksum</dt><dd>{{ s.checksum or '—' }}</dd>
-    <dt>Compatibilidad prevista</dt><dd>{{ s.compatibilidad or '—' }}</dd>
-    <dt>Observaciones</dt><dd class="x-pre">{{ s.observaciones or '—' }}</dd>
   </dl>
+  {% if legacy_fields %}
+  <p class="x-muted">Datos registrados con el formulario anterior:</p>
+  <dl class="x-kv">{% for label, value in legacy_fields %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+  {% endif %}
+</section>
+
+<section class="x-sec x-two">
+  <div>
+    <h3>Prueba MDB</h3>
+    <dl class="x-kv">
+      <dt>Resultado</dt><dd><strong>{{ s.mdb_resultado or 'Sin registrar' }}</strong></dd>
+      <dt>Observado / error</dt><dd class="x-pre">{{ s.mdb_observacion or '—' }}</dd>
+    </dl>
+  </div>
+  <div>
+    <h3>Prueba DEX</h3>
+    <dl class="x-kv">
+      <dt>Resultado</dt><dd><strong>{{ s.dex_resultado or 'Sin registrar' }}</strong></dd>
+      <dt>Archivo obtenido</dt><dd>{{ s.dex_archivo or '—' }}</dd>
+      <dt>Customer ID</dt><dd>{{ s.dex_customer_id or '—' }}</dd>
+      <dt>Provider ID</dt><dd>{{ s.dex_provider_id or '—' }}</dd>
+      <dt>Observado / error</dt><dd class="x-pre">{{ s.dex_observacion or '—' }}</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="x-sec">
+  <h2>Observaciones generales</h2>
+  <p class="x-pre">{{ s.observaciones or '—' }}</p>
 </section>
 
 <section class="x-sec">

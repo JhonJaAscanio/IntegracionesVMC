@@ -321,6 +321,10 @@ class Service:
             if session is None:
                 raise ConflictError(f"La sesión {sid} no existe.")
             values = V.clean(form, V.SESSION_FIELDS)
+            # Los campos que el formulario ya no solicita conservan su valor actual.
+            for key in S.ID_LEGACY_FIELDS:
+                if key not in form:
+                    values[key] = session.get(key, "")
             V.validate_session(values, data.catalogos, draft, data.ciudades, current=session)
             estado = None
             if session["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR and not draft:
@@ -593,6 +597,12 @@ class Service:
         cliente, comercio = session.get("cliente", ""), session.get("comercio", "")
         return f"{cliente} - {comercio}" if cliente and comercio else (cliente or comercio)
 
+    @staticmethod
+    def legacy_fields(session):
+        """Campos del formulario anterior con datos, como [(encabezado, valor)]."""
+        labels = dict(S.ID_COLUMNS)
+        return [(labels[k], session[k]) for k in S.ID_LEGACY_FIELDS if session.get(k)]
+
     def objective_templates(self):
         """Objetivo propuesto para cada tipo de prueba (config.json → sesiones.objetivos_por_tipo)."""
         return dict(self.config.get("sesiones", {}).get("objetivos_por_tipo", {}))
@@ -607,16 +617,29 @@ class Service:
         cierre = dict(cierre)
         cierre.update({k: v for k, v in (overrides or {}).items() if v})
         t = self.totals(sid, data)
+        # Visitas con los campos MDB del formulario anterior conservan la línea original del libro.
+        if any(s.get(k) for k in ("mdb_estandar", "mdb_version", "mdb_modulo")):
+            software = f"MDB: {s.get('mdb_estandar', '')} / {s.get('mdb_version', '')} / {s.get('mdb_modulo', '')}\n"
+        else:
+            software = (f"Versión de la máquina: {s.get('version_maquina', '')}  |  "
+                        f"Gateway MDB: {s.get('version_gateway', '')}\n")
+        pruebas = ""
+        for nombre, resultado, observacion in (("MDB", "mdb_resultado", "mdb_observacion"),
+                                               ("DEX", "dex_resultado", "dex_observacion")):
+            if s.get(resultado) or s.get(observacion):
+                detalle = f" — {s[observacion]}" if s.get(observacion) else ""
+                pruebas += f"Prueba {nombre}: {s.get(resultado) or 'Sin resultado'}{detalle}\n"
         return (
             f"Resumen de visita — Sesión {sid}\n"
             f"Fecha de la visita: {s.get('fecha', '')}\n"
             f"Cliente / Comercio: {self.client_label(s)}\n"
             f"Máquina: {s.get('fabricante', '')} {s.get('modelo_maquina', '')} (Serial: {s.get('serial_maquina', '')})\n"
             f"POS: {s.get('modelo_pos', '')} (Serial: {s.get('serial_pos', '')}) — Firmware: {s.get('firmware', '')}\n"
-            f"MDB: {s.get('mdb_estandar', '')} / {s.get('mdb_version', '')} / {s.get('mdb_modulo', '')}\n"
+            f"{software}"
             f"Financiera: {s.get('version_financiera', '')}  |  Agente Polaris: {s.get('version_polaris', '')}\n"
             f"Participantes: {s.get('participantes', '')} (Responsable: {s.get('responsable', '')})\n"
             f"Objetivo: {s.get('objetivo', '')}\n\n"
+            f"{pruebas + chr(10) if pruebas else ''}"
             f"Resultado de pruebas: {t['ejecutadas']}/{t['planificadas']} ejecutadas — "
             f"Aprobadas: {t['aprobadas']}, Fallidas: {t['fallidas']}, Bloqueadas: {t['bloqueadas']}, "
             f"Pendientes: {t['pendientes']}\n"

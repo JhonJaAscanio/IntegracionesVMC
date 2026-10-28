@@ -94,7 +94,7 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 |---|---|
 | Dashboard | Indicadores calculados desde el libro, con filtros por fecha, cliente, fabricante, modelo, firmware y estado. Sin datos muestra un estado vacío, nunca cifras ficticias. |
 | Visitas e integraciones | Histórico con búsqueda, filtros, orden y paginación. Cada fila abre la ficha de la sesión. |
-| Nueva visita | Formulario en 5 pasos; el último adjunta fotos, logs y documentos a la carpeta de la visita. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
+| Nueva visita | Formulario en 5 pasos: Visita, Equipos (máquina con código del fabricante y nivel; POS con firmware), Software (versión de la máquina, gateway MDB, Financiera, Agente Polaris, configuraciones), Pruebas MDB y DEX (resultado y qué se observó o qué error ocurrió; en DEX también archivo obtenido, Customer ID y Provider ID) y Evidencias. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
 | Ficha de la sesión | Pestañas Resumen, Revisión física, Pruebas, Incidencias, Evidencias e Historial. |
 | Revisión física y eléctrica | Crea los 8 ítems del checklist por sesión; permite ítems adicionales. |
 | Casos de prueba | El ID se genera según el componente (MDB-004…). Una prueba **nunca** se aprueba sola: Aprobado/Fallido exigen resultado obtenido, y cambiar de Pendiente exige resultado esperado. |
@@ -121,6 +121,19 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 - Al iniciar, si el libro aún tiene la lista anterior de países o los tipos de prueba originales del
   checklist, se reemplazan por los nuevos (antes se crea un respaldo y el cambio queda en
   *App_Historial*). Las visitas anteriores conservan sus valores y se pueden editar sin cambiarlos.
+
+### Pruebas MDB y DEX de la visita
+
+- **Prueba MDB:** resultado (Exitosa, Fallida, No realizada, No aplica) y qué se observó o qué error ocurrió.
+- **Prueba DEX:** resultado, archivo DEX obtenido (Sí/No), Customer ID y Provider ID DEX, y qué se observó o
+  qué error ocurrió. El archivo DEX se adjunta en Evidencias y queda en `logs/dex/`.
+- Si una prueba queda como **Fallida**, es obligatorio describir el error.
+- El resultado aparece en la ficha, en *Identificación y versiones*, en la comparación de sesiones, en el informe
+  y en el resumen para correo. El detalle por caso se sigue registrando en *Casos de prueba*.
+
+Los campos del formulario anterior (MDB estándar/versión/módulo, versión anterior y nueva, fecha de instalación,
+checksum y compatibilidad) ya no se piden; se conservan en el libro, no se borran al editar y se muestran como
+“datos registrados con el formulario anterior” cuando tienen valor.
 
 ### Criterios de cierre
 
@@ -161,7 +174,8 @@ data/evidencias/SES-004/
 ├── fotos/        maquina_*.jpg, etiqueta_*.jpg, conexiones_*.jpg, captura_*.png
 ├── logs/         otros logs de la visita (sniffer, diagnóstico)
 │   ├── new5320/  logs del POS NEW5320
-│   └── qibixx/   logs de Qibixx
+│   ├── qibixx/   logs de Qibixx
+│   └── dex/      archivos DEX (auditoría de la máquina)
 ├── videos/
 ├── documentos/
 ├── informes/     Informe_SES-004_AAAAMMDD_HHMMSS.html (generados por la plataforma)

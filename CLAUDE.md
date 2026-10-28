@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~180 s; 65 pruebas)
+python -m pytest                    # Todas las pruebas (~180 s; 73 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -65,8 +65,8 @@ Hojas originales: `Instrucciones`, `Listas` (oculta), `Identificación y Version
 
 La migración `ensure_schema()` (idempotente, se ejecuta en cada escritura) agrega **sin modificar celdas existentes**:
 
-- Columnas al final: `País`, `Ciudad`, `Comercio / punto de venta` (Identificación) e `ID de prueba asociada` (Incidencias).
-- Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`, `Cliente WPOSS` + `País del cliente`, `Ciudad` + `País de la ciudad` (pares fila a fila, `CATALOG_PAIRS`, leídos con `read_pairs`) y `Firmware NEW5320`.
+- Columnas al final: `País`, `Ciudad`, `Comercio / punto de venta`, `Código del fabricante`, `Nivel de la máquina`, `Versión de la máquina`, `Versión gateway MDB` y las de `Prueba MDB — …` / `Prueba DEX — …` (Identificación); `ID de prueba asociada` (Incidencias).
+- Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`, `Cliente WPOSS` + `País del cliente`, `Ciudad` + `País de la ciudad` (pares fila a fila, `CATALOG_PAIRS`, leídos con `read_pairs`) y `Firmware NEW5320`, `Nivel de la máquina` (Nivel 1-3) y `Resultado de prueba MDB / DEX`.
 - `_replace_catalog` sustituye `País` (lista anterior de la app) y `Tipo de prueba (sesión)` (`Listas!E`, valores originales del checklist) por las listas definidas por WPOSS **solo si conservan exactamente los valores anteriores**; deja historial y `initialize()` crea un respaldo antes de guardar la migración.
 - Columna `Categoría` al final de `App_Evidencias` (si la hoja ya existía sin ella).
 - Hojas: `App_Sesiones` (estado de registro Borrador/En curso/Cerrada), `App_Evidencias`, `App_Historial` (cambios campo a campo), `App_Contadores` (último número emitido por prefijo).
@@ -115,11 +115,14 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 - Objetivo por tipo de prueba: `config.json` → `sesiones.objetivos_por_tipo` (`Service.objective_templates`). El JS solo lo escribe si el campo está vacío o contiene otro texto de plantilla.
 - Clientes y ciudades se agregan en Configuración con su país (`add_catalog_value` con `pair`). Las columnas de país emparejadas (`CATALOGS_HIDDEN`) no se editan solas.
 - `rec["cliente_label"]` (cliente y comercio) es lo que muestran listados, carpeta e informe.
+- Paso 4 del formulario: **Pruebas MDB y DEX** (`mdb_resultado`/`mdb_observacion`, `dex_resultado`/`dex_archivo`/`dex_customer_id`/`dex_provider_id`/`dex_observacion`). Resultado `Fallida` exige la observación (`validate_session`).
+- `S.ID_LEGACY_FIELDS` (MDB estándar/versión/módulo, versión anterior/nueva, fecha de instalación, checksum, compatibilidad) ya no están en el formulario: `update_session` conserva su valor si no llegan en el envío y `Service.legacy_fields()` los muestra cuando tienen datos. El resumen usa la línea `MDB:` original solo si la visita tiene esos campos; si no, `Versión de la máquina | Gateway MDB`, más las líneas `Prueba MDB/DEX`.
+- Categoría `Archivo DEX` → `logs/dex/` (extensión `.dex` tratada como texto).
 
 ### Carpetas de visitas, evidencias e informes
 
 - `EvidenceManager.ensure_session_dir()` crea la carpeta de la visita con sus subcarpetas al crear la sesión.
-- Logs por origen: categoría `Log del POS NEW5320` → `logs/new5320/`, `Log de Qibixx` → `logs/qibixx/`, `Log de la visita` → `logs/`. `folder_of()` devuelve el primer nivel (`logs`) y `subfolder_of()` la ruta completa; `LOG_SUBFOLDERS` define las subcarpetas válidas para `?sub=`. Un archivo copiado a mano en `logs/qibixx/` sugiere su categoría por la ruta (`category_for_path`).
+- Logs por origen: categoría `Log del POS NEW5320` → `logs/new5320/`, `Log de Qibixx` → `logs/qibixx/`, `Log de la visita` → `logs/`, `Archivo DEX` → `logs/dex/`. `folder_of()` devuelve el primer nivel (`logs`) y `subfolder_of()` la ruta completa; `LOG_SUBFOLDERS` define las subcarpetas válidas para `?sub=`. Un archivo copiado a mano en `logs/qibixx/` sugiere su categoría por la ruta (`category_for_path`).
 - La categoría decide la subcarpeta y el prefijo del nombre (`evidence.CATEGORIES`); las fotos exigen extensión de imagen, los videos `mp4/mov`. Sin categoría se infiere por extensión (`infer_category`), también para registros antiguos sin columna `Categoría`.
 - `Service.create_session(form, draft, files)` valida todos los archivos antes de crear nada, los guarda en disco y escribe sesión + `add_evidence` en **una sola** llamada a `store.write`. Si la escritura falla (salvo `PendingWriteError`), borra los archivos recién guardados (`_write_with_files`). Con el libro bloqueado los archivos se conservan y su registro queda en el diario.
 - Los IDs `EVD-NNN` de varios archivos se asignan consecutivos desde un único `next_id` (`_store_files`).

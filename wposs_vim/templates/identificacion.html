@@ -14,18 +14,19 @@
 {% if rows %}
 <div class="table-wrap">
 <table class="table">
-  <thead><tr><th>Sesión</th><th>Máquina</th><th>POS</th><th>Firmware</th><th>MDB (estándar / versión / módulo)</th><th>Financiera</th><th>Agente Polaris</th><th>Compatibilidad</th><th></th></tr></thead>
+  <thead><tr><th>Sesión</th><th>Máquina</th><th>POS</th><th>Firmware</th><th>Versión máquina</th><th>Gateway MDB</th><th>Financiera</th><th>Agente Polaris</th><th>MDB · DEX</th><th></th></tr></thead>
   <tbody>
   {% for s in rows %}
     <tr>
       <td class="mono nowrap"><a href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a><div class="muted small">{{ s.fecha }}</div></td>
-      <td>{{ s.fabricante or '—' }} {{ s.modelo_maquina }}<div class="muted small mono">{{ s.serial_maquina }}</div></td>
+      <td>{{ s.fabricante or '—' }} {{ s.modelo_maquina }}<div class="muted small mono">{{ s.serial_maquina }}{{ ' · ' ~ s.nivel_maquina if s.nivel_maquina }}</div></td>
       <td>{{ s.modelo_pos or '—' }}<div class="muted small mono">{{ s.serial_pos }}</div></td>
       <td class="mono">{{ s.firmware or '—' }}</td>
-      <td class="small">{{ s.mdb_estandar or '—' }} / {{ s.mdb_version or '—' }} / {{ s.mdb_modulo or '—' }}</td>
+      <td class="mono small">{{ s.version_maquina or '—' }}</td>
+      <td class="mono small">{{ s.version_gateway or s.mdb_modulo or '—' }}</td>
       <td class="mono small">{{ s.version_financiera or '—' }}</td>
       <td class="mono small">{{ s.version_polaris or '—' }}</td>
-      <td class="small">{{ s.compatibilidad or '—' }}</td>
+      <td class="small nowrap">{{ m.badge(s.mdb_resultado, '—') }} {{ m.badge(s.dex_resultado, '—') }}</td>
       <td class="right"><a class="btn-icon" href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}" title="Editar"><svg class="i"><use href="#i-edit"/></svg></a></td>
     </tr>
   {% endfor %}

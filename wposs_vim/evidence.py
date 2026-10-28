@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .validators import SESSION_ID_RE, ValidationError
 
-TEXT_EXTENSIONS = {"txt", "log", "csv", "json", "xml", "hex"}
+TEXT_EXTENSIONS = {"txt", "log", "csv", "json", "xml", "hex", "dex"}
 IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"}
 WEB_IMAGE_EXTENSIONS = IMAGE_EXTENSIONS - {"heic"}
 VIDEO_EXTENSIONS = {"mp4", "mov"}
@@ -19,6 +19,7 @@ CATEGORIA_INFORME = "Informe generado"
 CATEGORIA_LOG_NEW5320 = "Log del POS NEW5320"
 CATEGORIA_LOG_QIBIXX = "Log de Qibixx"
 CATEGORIA_LOG = "Log de la visita"
+CATEGORIA_DEX = "Archivo DEX"
 # Categoría → (subcarpeta, prefijo del nombre de archivo, extensiones admitidas o None = todas).
 CATEGORIES = {
     "Foto de la máquina": ("fotos", "maquina", IMAGE_EXTENSIONS),
@@ -28,6 +29,7 @@ CATEGORIES = {
     "Video": ("videos", "", VIDEO_EXTENSIONS),
     CATEGORIA_LOG_NEW5320: ("logs/new5320", "", LOG_EXTENSIONS),
     CATEGORIA_LOG_QIBIXX: ("logs/qibixx", "", LOG_EXTENSIONS),
+    CATEGORIA_DEX: ("logs/dex", "", LOG_EXTENSIONS | {"dex"}),
     CATEGORIA_LOG: ("logs", "", LOG_EXTENSIONS),
     "Documento": ("documentos", "", None),
     CATEGORIA_INFORME: ("informes", "", {"html"}),
@@ -38,8 +40,9 @@ FOLDERS = ["fotos", "logs", "videos", "documentos", "informes", "otros"]
 FOLDER_LABELS = {"fotos": "Fotos", "logs": "Logs", "videos": "Videos", "documentos": "Documentos",
                  "informes": "Informes", "otros": "Otros"}
 # Subcarpetas dentro de logs/ (ruta relativa a la carpeta de la visita → etiqueta).
-LOG_SUBFOLDERS = {"logs/new5320": "NEW5320", "logs/qibixx": "Qibixx"}
-SUBFOLDER_CATEGORY = {"logs/new5320": CATEGORIA_LOG_NEW5320, "logs/qibixx": CATEGORIA_LOG_QIBIXX}
+LOG_SUBFOLDERS = {"logs/new5320": "NEW5320", "logs/qibixx": "Qibixx", "logs/dex": "DEX"}
+SUBFOLDER_CATEGORY = {"logs/new5320": CATEGORIA_LOG_NEW5320, "logs/qibixx": CATEGORIA_LOG_QIBIXX,
+                      "logs/dex": CATEGORIA_DEX}
 _PAN_CANDIDATE = re.compile(rb"(?<!\d)(?:\d[ -]?){13,19}(?!\d)")
 
 

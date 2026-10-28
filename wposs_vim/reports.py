@@ -90,11 +90,13 @@ def report_context(service, sid, file_link):
     log_groups = {
         "Logs del POS NEW5320": [e for e in groups["logs"] if subfolder_of(e) == "logs/new5320"],
         "Logs de Qibixx": [e for e in groups["logs"] if subfolder_of(e) == "logs/qibixx"],
+        "Archivos DEX": [e for e in groups["logs"] if subfolder_of(e) == "logs/dex"],
         "Otros logs de la visita": [e for e in groups["logs"] if subfolder_of(e) == "logs"],
     }
     return {
         "b": bundle, "totals": service.totals(sid, data), "ev": service.evaluate_closure(sid, data),
         "summary": service.email_summary(sid), "groups": groups, "log_groups": log_groups,
+        "legacy_fields": service.legacy_fields(bundle["sesion"]),
         "folder_labels": FOLDER_LABELS,
         "image_exts": WEB_IMAGE_EXTENSIONS, "file_link": file_link,
         "incident_history": {i["id"]: service.history("Incidencia", i["id"]) for i in bundle["incidencias"]},

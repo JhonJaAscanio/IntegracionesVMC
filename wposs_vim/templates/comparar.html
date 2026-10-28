@@ -10,7 +10,7 @@
 <table class="table compare">
   <thead><tr><th></th>{% for r in c.filas %}<th class="mono"><a href="{{ url_for('main.visita', sid=r.sesion.sesion_id) }}">{{ r.sesion.sesion_id }}</a></th>{% endfor %}</tr></thead>
   <tbody>
-    {% for key, label in [('fecha','Fecha'),('cliente','Cliente'),('fabricante','Fabricante'),('modelo_maquina','Modelo máquina'),('modelo_pos','Modelo POS'),('serial_pos','Serial POS'),('firmware','Firmware NEW5320'),('mdb_version','MDB versión'),('mdb_modulo','MDB módulo'),('version_financiera','Versión Financiera'),('version_polaris','Agente Polaris'),('compatibilidad','Compatibilidad prevista')] %}
+    {% for key, label in [('fecha','Fecha'),('cliente','Cliente'),('fabricante','Fabricante'),('modelo_maquina','Modelo máquina'),('modelo_pos','Modelo POS'),('serial_pos','Serial POS'),('firmware','Firmware NEW5320'),('codigo_fabricante','Código del fabricante'),('nivel_maquina','Nivel de la máquina'),('version_maquina','Versión de la máquina'),('version_gateway','Gateway MDB'),('version_financiera','Versión Financiera'),('version_polaris','Agente Polaris'),('mdb_resultado','Prueba MDB'),('dex_resultado','Prueba DEX')] %}
     {% set values = c.filas|map(attribute='sesion')|map(attribute=key)|list %}
     <tr class="{{ 'diff' if values|unique|list|length > 1 }}"><th>{{ label }}</th>{% for val in values %}<td>{{ val or '—' }}</td>{% endfor %}</tr>
     {% endfor %}
