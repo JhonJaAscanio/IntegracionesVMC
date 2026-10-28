@@ -166,3 +166,161 @@
     ta.addEventListener("input", fit); fit();
   });
 })();
+
+/* Selección de archivos antes de guardar: lista con miniatura, quitar archivos
+   uno a uno y acumular selecciones sucesivas en el mismo campo. */
+(function () {
+  "use strict";
+  if (typeof DataTransfer === "undefined") return;
+
+  function formatSize(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + " MB";
+    return Math.max(1, Math.round(bytes / 1024)) + " KB";
+  }
+
+  function fileKey(f) { return f.name + "|" + f.size + "|" + f.lastModified; }
+
+  document.querySelectorAll("input[type=file][multiple]").forEach(function (input) {
+    var kept = [];
+    var urls = [];
+    var summary = input.parentElement.querySelector("[data-file-summary]");
+    var list = document.createElement("ul");
+    list.className = "file-picks";
+    list.hidden = true;
+    input.insertAdjacentElement("afterend", list);
+
+    function render() {
+      urls.forEach(function (u) { URL.revokeObjectURL(u); });
+      urls = [];
+      list.textContent = "";
+      list.hidden = kept.length === 0;
+      kept.forEach(function (file, index) {
+        var item = document.createElement("li");
+        var thumb = document.createElement("span");
+        thumb.className = "file-thumb";
+        if (/^image\/(jpeg|png|gif|webp|bmp)$/.test(file.type)) {
+          var img = document.createElement("img");
+          var url = URL.createObjectURL(file);
+          urls.push(url);
+          img.src = url;
+          img.alt = "";
+          thumb.appendChild(img);
+        } else {
+          thumb.textContent = (file.name.split(".").pop() || "?").slice(0, 4).toUpperCase();
+        }
+        var info = document.createElement("span");
+        info.className = "file-info";
+        var name = document.createElement("span");
+        name.className = "file-name";
+        name.textContent = file.name;
+        name.title = file.name;
+        var size = document.createElement("span");
+        size.className = "muted small";
+        size.textContent = formatSize(file.size);
+        info.appendChild(name);
+        info.appendChild(size);
+        var remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "btn btn-sm btn-ghost";
+        remove.textContent = "Quitar";
+        remove.setAttribute("aria-label", "Quitar " + file.name);
+        remove.addEventListener("click", function () {
+          kept.splice(index, 1);
+          sync();
+          input.focus();
+        });
+        item.appendChild(thumb);
+        item.appendChild(info);
+        item.appendChild(remove);
+        list.appendChild(item);
+      });
+      if (summary) {
+        var total = kept.reduce(function (acc, f) { return acc + f.size; }, 0);
+        summary.textContent = kept.length ? kept.length + " archivo(s) · " + formatSize(total) : "";
+      }
+    }
+
+    function sync() {
+      var dt = new DataTransfer();
+      kept.forEach(function (f) { dt.items.add(f); });
+      input.files = dt.files;
+      render();
+    }
+
+    input.addEventListener("change", function () {
+      var seen = {};
+      kept.forEach(function (f) { seen[fileKey(f)] = true; });
+      Array.prototype.forEach.call(input.files || [], function (f) {
+        if (!seen[fileKey(f)]) { kept.push(f); seen[fileKey(f)] = true; }
+      });
+      sync();
+    });
+
+    if (input.form) {
+      input.form.addEventListener("reset", function () { kept = []; render(); });
+    }
+  });
+})();
+
+/* Formulario de visita: país según cliente, ciudades según país y objetivo según tipo de prueba. */
+(function () {
+  "use strict";
+
+  function readMap(el, attr) {
+    try { return JSON.parse(el.getAttribute(attr) || "{}"); } catch (e) { return {}; }
+  }
+
+  document.querySelectorAll("select[data-city-map]").forEach(function (pais) {
+    var map = readMap(pais, "data-city-map");
+    var ciudad = document.getElementById(pais.dataset.cityTarget);
+    if (!ciudad) return;
+    pais.addEventListener("change", function () {
+      var current = ciudad.value;
+      var cities = map[pais.value] || [];
+      ciudad.textContent = "";
+      var blank = document.createElement("option");
+      blank.value = "";
+      blank.textContent = pais.value ? "Seleccione…" : "Seleccione el país primero";
+      ciudad.appendChild(blank);
+      cities.forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c; o.textContent = c;
+        if (c === current) o.selected = true;
+        ciudad.appendChild(o);
+      });
+    });
+  });
+
+  document.querySelectorAll("select[data-country-map]").forEach(function (cliente) {
+    var map = readMap(cliente, "data-country-map");
+    var pais = document.getElementById(cliente.dataset.countryTarget);
+    if (!pais) return;
+    cliente.addEventListener("change", function () {
+      var target = map[cliente.value];
+      if (!target || pais.value === target) return;
+      var exists = Array.prototype.some.call(pais.options, function (o) { return o.value === target; });
+      if (exists) {
+        pais.value = target;
+        pais.dispatchEvent(new Event("change"));
+      }
+    });
+  });
+
+  document.querySelectorAll("select[data-objective-map]").forEach(function (tipo) {
+    var map = readMap(tipo, "data-objective-map");
+    var objetivo = document.getElementById(tipo.dataset.objectiveTarget);
+    if (!objetivo) return;
+    var templates = Object.keys(map).map(function (k) { return map[k]; });
+    function apply() {
+      var text = map[tipo.value];
+      if (!text) return;
+      var current = objetivo.value.trim();
+      if (!current || templates.indexOf(current) >= 0) {
+        objetivo.value = text;
+        objetivo.dispatchEvent(new Event("input"));
+      }
+    }
+    tipo.addEventListener("change", apply);
+    if (!objetivo.value.trim()) apply();
+  });
+})();

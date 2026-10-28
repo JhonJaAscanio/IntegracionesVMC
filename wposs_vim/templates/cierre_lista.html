@@ -14,7 +14,7 @@
     <tr data-href="{{ url_for('main.cierre', sid=s.sesion_id) }}">
       <td class="mono"><a href="{{ url_for('main.cierre', sid=s.sesion_id) }}">{{ s.sesion_id }}</a></td>
       <td class="nowrap">{{ s.fecha }}</td>
-      <td class="truncate">{{ s.cliente or '—' }}</td>
+      <td class="truncate">{{ s.cliente_label or '—' }}</td>
       <td class="num">{{ t.ejecutadas }}/{{ t.planificadas }}</td>
       <td class="num tone-ok">{{ t.aprobadas }}</td>
       <td class="num tone-bad">{{ t.fallidas }}</td>

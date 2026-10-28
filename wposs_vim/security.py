@@ -48,7 +48,7 @@ def install(app, port):
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         resp.headers.setdefault("Content-Security-Policy",
-                                "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+                                "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; "
                                 "script-src 'self'; object-src 'none'; frame-ancestors 'self'")
         return resp
 

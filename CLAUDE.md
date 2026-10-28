@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~100 s; 38 pruebas)
+python -m pytest                    # Todas las pruebas (~180 s; 65 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -38,9 +38,9 @@ El análisis completo del libro original (hojas, relaciones, fórmulas, validaci
 | `operations.py` | Operaciones de escritura serializables registradas en `Operations.REGISTRY`. |
 | `validators.py` | `ValidationError(errors: dict)`, limpieza y validación por entidad. |
 | `services.py` | Lógica de negocio: enriquecimiento de sesiones, generación de IDs, totales y evaluación del cierre, resumen para correo, dashboard y consultas. |
-| `evidence.py` | Archivos adjuntos: nombres seguros, sin sobrescritura, detección de números de tarjeta (Luhn). |
+| `evidence.py` | Carpeta por visita y archivos adjuntos: categorías → subcarpetas (`CATEGORIES`), nombres seguros, sin sobrescritura, detección de números de tarjeta (Luhn), visor de texto y archivos copiados manualmente. |
 | `backups.py` | Respaldos `auto_`/`manual_`/`previo_restauracion_`, retención y restauración validada. |
-| `reports.py` | Exportación a un libro nuevo en `data/exportaciones/`. |
+| `reports.py` | Exportación a un libro nuevo en `data/exportaciones/`; `report_context` (datos completos de una visita), `generate_visit_report` (informe HTML en `informes/`) y `build_visit_zip` (carpeta + informe + `datos_visita.xlsx`). |
 | `security.py` | Acceso solo loopback, validación de Host, CSRF, cabeceras CSP, filtro de redacción en logs. |
 | `routes.py` | Blueprint `main` con todas las rutas y el manejo de errores de escritura. |
 
@@ -51,7 +51,8 @@ El análisis completo del libro original (hojas, relaciones, fórmulas, validaci
 | `WPOSS_Checklist_Pruebas_Vending_5320.xlsx` | Original de referencia. **Nunca se escribe.** |
 | `data/original/` | Copia íntegra del original + `ORIGEN.txt` con SHA-256. |
 | `data/trabajo/WPOSS_Vending_Datos.xlsx` | Libro de trabajo: almacenamiento real. |
-| `data/evidencias/<SES-xxx>/` | Adjuntos por sesión. |
+| `data/evidencias/<SES-xxx>/` | Carpeta de la visita con subcarpetas `fotos/`, `logs/` (con `logs/new5320/` y `logs/qibixx/`), `videos/`, `documentos/`, `informes/`, `otros/`. |
+| `data/papelera/<SES-xxx>/` | Archivos eliminados de una visita (`AAAAMMDD_HHMMSS__subcarpeta__nombre`). |
 | `data/pendientes/*.json` | Diario de cambios no escritos (Excel bloqueado). |
 | `data/.secret_key` | Clave de sesión Flask generada localmente. |
 | `respaldos/`, `logs/app.log` | Respaldos y registro de operaciones. |
@@ -64,8 +65,10 @@ Hojas originales: `Instrucciones`, `Listas` (oculta), `Identificación y Version
 
 La migración `ensure_schema()` (idempotente, se ejecuta en cada escritura) agrega **sin modificar celdas existentes**:
 
-- Columnas al final: `País`, `Ciudad` (Identificación) e `ID de prueba asociada` (Incidencias).
-- Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`.
+- Columnas al final: `País`, `Ciudad`, `Comercio / punto de venta` (Identificación) e `ID de prueba asociada` (Incidencias).
+- Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`, `Cliente WPOSS` + `País del cliente`, `Ciudad` + `País de la ciudad` (pares fila a fila, `CATALOG_PAIRS`, leídos con `read_pairs`) y `Firmware NEW5320`.
+- `_replace_catalog` sustituye `País` (lista anterior de la app) y `Tipo de prueba (sesión)` (`Listas!E`, valores originales del checklist) por las listas definidas por WPOSS **solo si conservan exactamente los valores anteriores**; deja historial y `initialize()` crea un respaldo antes de guardar la migración.
+- Columna `Categoría` al final de `App_Evidencias` (si la hoja ya existía sin ella).
 - Hojas: `App_Sesiones` (estado de registro Borrador/En curso/Cerrada), `App_Evidencias`, `App_Historial` (cambios campo a campo), `App_Contadores` (último número emitido por prefijo).
 - Filas en `App_Sesiones` para sesiones preexistentes.
 
@@ -97,13 +100,33 @@ La migración `ensure_schema()` (idempotente, se ejecuta en cada escritura) agre
 | aprobadas/fallidas/bloqueadas/pendientes | Conteo exacto del estado |
 | incidencias_abiertas | Estado no vacío y distinto de `Cerrado` |
 
-`Service.email_summary()` reproduce exactamente el texto de la fórmula `AD` ("Resumen de visita — Sesión …"). `operations.save_cierre` escribe solo las columnas de captura (`CIERRE_INPUT_KEYS`) y restituye las fórmulas originales con `cierre_formulas(row)`.
+`Service.email_summary()` reproduce el texto de la fórmula `AD` ("Resumen de visita — Sesión …"), con una diferencia: la línea "Cliente / Comercio" usa `client_label()` (`CLIENTE - Comercio`), mientras la fórmula de Excel solo muestra la columna Cliente. `operations.save_cierre` escribe solo las columnas de captura (`CIERRE_INPUT_KEYS`) y restituye las fórmulas originales con `cierre_formulas(row)`.
 
 `Service.evaluate_closure()` aplica los criterios de `config.json` → `cierre`. El libro **no define** criterios de salida (pregunta abierta en `Instrucciones` A38); los valores por defecto son conservadores y `componentes_criticos` está vacío a propósito. El concepto sugerido es orientativo; `save_cierre` bloquea "Apto para piloto" si hay bloqueos y exige pendientes documentados para "Apto con condiciones".
 
 ### Filas de ejemplo
 
 Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesión es ejemplo si su campo Observaciones lo contiene (SES-001); una incidencia es ejemplo si su sesión lo es o su Descripción lo contiene (INC-001..003). Con `datos.excluir_ejemplos = true` se excluyen de dashboard, listados y totales. Las fórmulas de Excel sí las cuentan; la pantalla de cierre muestra la diferencia. Solo se eliminan por acción explícita (`delete_example`), que vacía la fila y deja el contenido en `App_Historial`.
+
+### Listas de la visita (definidas por WPOSS)
+
+- Cliente, país, ciudad y firmware son selects alimentados por `Listas`; `validate_session(data, catalogos, draft, ciudades, current)` exige que la ciudad pertenezca al país y acepta el valor que ya tenía el registro (`current`) aunque ya no esté en el catálogo, para no forzar cambios en visitas anteriores.
+- `Data.clientes_pais` y `Data.ciudades` alimentan los selects; el formulario recibe los mapas como JSON en atributos `data-country-map`, `data-city-map` y `data-objective-map` (`app.js`).
+- Objetivo por tipo de prueba: `config.json` → `sesiones.objetivos_por_tipo` (`Service.objective_templates`). El JS solo lo escribe si el campo está vacío o contiene otro texto de plantilla.
+- Clientes y ciudades se agregan en Configuración con su país (`add_catalog_value` con `pair`). Las columnas de país emparejadas (`CATALOGS_HIDDEN`) no se editan solas.
+- `rec["cliente_label"]` (cliente y comercio) es lo que muestran listados, carpeta e informe.
+
+### Carpetas de visitas, evidencias e informes
+
+- `EvidenceManager.ensure_session_dir()` crea la carpeta de la visita con sus subcarpetas al crear la sesión.
+- Logs por origen: categoría `Log del POS NEW5320` → `logs/new5320/`, `Log de Qibixx` → `logs/qibixx/`, `Log de la visita` → `logs/`. `folder_of()` devuelve el primer nivel (`logs`) y `subfolder_of()` la ruta completa; `LOG_SUBFOLDERS` define las subcarpetas válidas para `?sub=`. Un archivo copiado a mano en `logs/qibixx/` sugiere su categoría por la ruta (`category_for_path`).
+- La categoría decide la subcarpeta y el prefijo del nombre (`evidence.CATEGORIES`); las fotos exigen extensión de imagen, los videos `mp4/mov`. Sin categoría se infiere por extensión (`infer_category`), también para registros antiguos sin columna `Categoría`.
+- `Service.create_session(form, draft, files)` valida todos los archivos antes de crear nada, los guarda en disco y escribe sesión + `add_evidence` en **una sola** llamada a `store.write`. Si la escritura falla (salvo `PendingWriteError`), borra los archivos recién guardados (`_write_with_files`). Con el libro bloqueado los archivos se conservan y su registro queda en el diario.
+- Los IDs `EVD-NNN` de varios archivos se asignan consecutivos desde un único `next_id` (`_store_files`).
+- Eliminar evidencia (`Service.delete_evidence`, ruta `POST /carpetas/<sid>/eliminar` con `confirmar=si`): mueve el archivo a la papelera (`EvidenceManager.move_to_trash`) y luego ejecuta la operación `delete_evidence`, que vacía la fila de `App_Evidencias`, quita la ruta de la columna Evidencia del registro asociado y deja historial con la ubicación en la papelera. Si la escritura falla (salvo `PendingWriteError`), `restore_from_trash` devuelve el archivo. Nunca borrar archivos de evidencia de forma definitiva.
+- Antes de guardar, `app.js` gestiona todos los `input[type=file][multiple]`: lista con miniatura (`blob:`, permitido en `img-src`), botón Quitar y acumulación de selecciones reconstruyendo `input.files` con `DataTransfer`.
+- `/archivo/<ruta>` solo sirve rutas registradas en `App_Evidencias`. Únicamente los HTML con categoría `Informe generado` se muestran como HTML; cualquier otro `.html` se sirve como texto.
+- `_expediente.html` es compartido por la vista de carpeta y por `informe_visita.html` (HTML autónomo con CSS en línea, sin scripts). Recibe `file_link(ruta)`: URL de la app en la carpeta, ruta relativa (`posixpath.relpath`) en el informe y en el .zip. No usar `url_for` ni `request` dentro de `_expediente.html`.
 
 ### Rutas principales
 
@@ -115,7 +138,9 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 | `/pruebas`, `/pruebas/nueva`, `/pruebas/<id>/editar` | Casos de prueba |
 | `/incidencias`, `/incidencias/nueva?prueba=<id>`, `/incidencias/<id>/editar` | Incidencias (precarga desde prueba) |
 | `/cierre`, `/visitas/<sid>/cierre`, `/visitas/<sid>/resumen.txt`, `/visitas/<sid>/informe` | Cierre, resumen para correo, informe imprimible |
-| `/visitas/<sid>/evidencias` (POST), `/archivo/<ruta>` | Subida y descarga de evidencias registradas |
+| `/visitas/<sid>/evidencias` (POST, varios archivos), `/archivo/<ruta>` | Subida y descarga de evidencias registradas |
+| `/carpetas`, `/carpetas/<sid>[?sub=fotos\|logs…][?vista=expediente]`, `/carpetas/<sid>/ver?ruta=` | Carpetas de visitas, archivos por subcarpeta, todos los datos, visor de logs |
+| `/carpetas/<sid>/informe`, `/reportes/informe` (POST), `/carpetas/<sid>/descargar`, `/carpetas/<sid>/abrir`, `/carpetas/<sid>/registrar`, `/carpetas/<sid>/eliminar` | Generar informe, descargar .zip, abrir en Explorador, registrar archivo copiado, eliminar archivo a la papelera |
 | `/maquinas`, `/identificacion`, `/revision`, `/reportes`, `/reportes/comparar`, `/reportes/exportar` | Consultas y reportes |
 | `/configuracion`, `/respaldos/*`, `/pendientes/reintentar` | Configuración, respaldos, cambios pendientes |
 

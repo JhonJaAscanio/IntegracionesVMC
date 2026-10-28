@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Carpetas de visitas{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Carpetas de visitas</h1>
+    <p class="muted">Cada visita tiene su carpeta con fotos, logs, documentos e informes. Entre a una carpeta para ver todos sus datos.</p>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div class="field grow"><label for="c-q">Buscar</label><input id="c-q" type="search" name="q" value="{{ f.q }}" placeholder="ID, cliente, fabricante, modelo, serial…"></div>
+  <div class="field"><label for="c-desde">Desde</label><input id="c-desde" type="date" name="desde" value="{{ f.desde }}"></div>
+  <div class="field"><label for="c-hasta">Hasta</label><input id="c-hasta" type="date" name="hasta" value="{{ f.hasta }}"></div>
+  <div class="filters-actions"><button class="btn btn-primary btn-sm">Buscar</button>{% if f %}<a class="btn btn-sm btn-ghost" href="{{ url_for('main.carpetas') }}">Limpiar</a>{% endif %}</div>
+</form>
+
+{% if rows %}
+<div class="folder-grid">
+  {% for r in rows %}{% set s = r.sesion %}
+  <a class="folder-card" href="{{ url_for('main.carpeta', sid=s.sesion_id) }}">
+    <div class="folder-top">
+      <svg class="i folder-icon"><use href="#i-folder"/></svg>
+      <div class="folder-title">
+        <strong class="mono">{{ s.sesion_id }}</strong>
+        <span class="muted small">{{ s.fecha or 'sin fecha' }}</span>
+      </div>
+      {{ m.badge(s.estado_integracion) }}
+    </div>
+    <p class="folder-client truncate">{{ s.cliente_label or 'Cliente sin registrar' }}</p>
+    <p class="muted small truncate">{{ s.fabricante or '—' }} {{ s.modelo_maquina }} · POS {{ s.modelo_pos or '—' }} · FW {{ s.firmware or '—' }}</p>
+    <ul class="folder-counts">
+      {% for key, label in [('fotos', 'Fotos'), ('logs', 'Logs'), ('documentos', 'Docs'), ('informes', 'Informes')] %}
+      <li class="{{ 'zero' if not r.conteo[key] }}"><strong>{{ r.conteo[key] }}</strong> {{ label }}</li>
+      {% endfor %}
+    </ul>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+  {{ m.empty('Sin carpetas', 'Las carpetas se crean al registrar una visita.', url_for('main.visita_nueva'), 'Nueva visita') }}
+{% endif %}
+{% endblock %}

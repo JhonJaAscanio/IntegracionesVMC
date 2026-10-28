@@ -56,8 +56,9 @@ ID_COLUMNS = [
     ("observaciones", "Observaciones"),
     ("pais", "País"),
     ("ciudad", "Ciudad"),
+    ("comercio", "Comercio / punto de venta"),
 ]
-ID_ADDED = ["pais", "ciudad"]
+ID_ADDED = ["pais", "ciudad", "comercio"]
 
 REVISION_COLUMNS = [
     ("sesion_id", "Sesión ID"),
@@ -161,7 +162,9 @@ APP_EVIDENCIAS_COLUMNS = [
     ("descripcion", "Descripción"),
     ("advertencia", "Advertencia"),
     ("fecha", "Fecha de carga"),
+    ("categoria", "Categoría"),
 ]
+APP_EVIDENCIAS_ADDED = ["categoria"]
 APP_HISTORIAL_COLUMNS = [
     ("fecha", "Fecha"),
     ("tipo_registro", "Tipo de registro"),
@@ -201,18 +204,51 @@ CATALOGS = [
     ("pais", "País"),
     ("fabricante", "Fabricante máquina"),
     ("item_revision", "Ítem de revisión física"),
+    ("cliente", "Cliente WPOSS"),
+    ("cliente_pais", "País del cliente"),
+    ("ciudad", "Ciudad"),
+    ("ciudad_pais", "País de la ciudad"),
+    ("firmware", "Firmware NEW5320"),
 ]
-CATALOGS_ADDED = ["pais", "fabricante", "item_revision"]
+CATALOGS_ADDED = ["pais", "fabricante", "item_revision", "cliente", "cliente_pais",
+                  "ciudad", "ciudad_pais", "firmware"]
 CATALOG_LABELS = dict(CATALOGS)
+
+# Columnas de Listas que acompañan fila a fila a otro catálogo (no son listas propias).
+CATALOG_PAIRS = {"cliente": "cliente_pais", "ciudad": "ciudad_pais"}
+CATALOGS_HIDDEN = list(CATALOG_PAIRS.values())
 
 # Catálogos cuyos valores no deben ampliarse desde la interfaz porque la
 # lógica de cálculo del cierre depende de ellos (fórmulas del libro).
 CATALOGS_FIXED = ["estados", "estado_incidencia", "concepto"]
 
-# Valores semilla de los catálogos nuevos. Los ítems de revisión son los
-# del libro original; los países son un punto de partida ampliable.
-SEED_PAISES = ["Colombia", "Ecuador", "Perú", "Panamá", "México", "Chile",
-               "Guatemala", "Costa Rica", "República Dominicana", "Otro"]
+# Valores semilla de los catálogos nuevos. Los ítems de revisión y los
+# fabricantes salen del libro original; el resto los definió WPOSS.
+SEED_PAISES = ["Ecuador", "Costa Rica", "Bolivia"]
+# Lista de países de la versión anterior de la aplicación; si el libro aún la
+# tiene sin cambios, se reemplaza por los países con clientes de WPOSS.
+LEGACY_SEED_PAISES = ["Colombia", "Ecuador", "Perú", "Panamá", "México", "Chile",
+                      "Guatemala", "Costa Rica", "República Dominicana", "Otro"]
+SEED_CLIENTES = [("DATAFAST", "Ecuador"), ("MEDIANET", "Ecuador"), ("ATC", "Bolivia"),
+                 ("PROMERICA CR", "Costa Rica")]
+SEED_CIUDADES = {
+    "Ecuador": ["Quito", "Guayaquil", "Cuenca", "Santo Domingo", "Machala", "Manta", "Durán",
+                "Portoviejo", "Ambato", "Loja", "Riobamba", "Esmeraldas", "Ibarra", "Quevedo",
+                "Milagro", "Latacunga", "Babahoyo", "Santa Elena", "Tulcán", "Guaranda", "Azogues",
+                "Nueva Loja", "Puerto Francisco de Orellana", "Tena", "Puyo", "Macas", "Zamora",
+                "Puerto Baquerizo Moreno"],
+    "Costa Rica": ["San José", "Alajuela", "Cartago", "Heredia", "Liberia", "Puntarenas", "Limón"],
+    "Bolivia": ["La Paz", "El Alto", "Santa Cruz de la Sierra", "Cochabamba", "Sucre", "Oruro",
+                "Potosí", "Tarija", "Trinidad", "Cobija"],
+}
+SEED_FIRMWARE = ["13.0.11", "13.0.13", "13.0.14", "13.0.15", "13.0.17", "13.0.22"]
+
+# Tipos de prueba de la sesión. Reemplazan a los del libro original por decisión de WPOSS;
+# los registros existentes conservan su valor.
+TIPOS_PRUEBA = ["Nueva Integración", "Reintegración", "Validación de correcciones",
+                "Integración de seguimiento"]
+LEGACY_TIPOS_PRUEBA = ["Instalación", "Diagnóstico", "Compatibilidad", "Piloto",
+                       "Actualización de versión", "Regresión", "Otro"]
 
 # Validaciones de lista del libro original (hoja, columna, catálogo).
 # openpyxl elimina las validaciones de extensión x14 al guardar, por eso
@@ -220,6 +256,9 @@ SEED_PAISES = ["Colombia", "Ecuador", "Perú", "Panamá", "México", "Chile",
 DATA_VALIDATIONS = [
     (SHEET_ID, "tipo_prueba", "tipo_prueba"),
     (SHEET_ID, "pais", "pais"),
+    (SHEET_ID, "ciudad", "ciudad"),
+    (SHEET_ID, "cliente", "cliente"),
+    (SHEET_ID, "firmware", "firmware"),
     (SHEET_REVISION, "resultado", "estados"),
     (SHEET_CASOS, "componente", "componente"),
     (SHEET_CASOS, "tipo_verificacion", "tipo_verificacion"),

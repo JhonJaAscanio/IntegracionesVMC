@@ -1,6 +1,8 @@
 """Rutas web."""
+import json
 import logging
 import math
+import os
 from datetime import datetime
 
 from flask import (Blueprint, Response, abort, current_app, flash, redirect, render_template,
@@ -9,9 +11,11 @@ from flask import (Blueprint, Response, abort, current_app, flash, redirect, ren
 from . import APP_NAME, APP_VERSION
 from . import schema as S
 from .config import save_config
-from .evidence import RECORD_TYPES
+from .evidence import (CATEGORIA_INFORME, CATEGORIA_LOG, FOLDER_LABELS, LOG_SUBFOLDERS, RECORD_TYPES,
+                       SUBFOLDER_CATEGORY, TEXT_EXTENSIONS, UPLOAD_CATEGORIES, WEB_IMAGE_EXTENSIONS,
+                       category_for_path, subfolder_of)
 from .excel_store import ConflictError, ExcelLockedError, PendingWriteError, StoreError
-from .reports import export_workbook
+from .reports import build_visit_zip, export_workbook, generate_visit_report, report_context
 from .services import INTEGRATION_CATEGORIES
 from .validators import SESSION_ID_RE, ValidationError
 
@@ -140,7 +144,36 @@ def visitas():
 
 def _session_form_context(values=None, errors=None, sid=None):
     data = svc().data()
-    return {"v": values or {}, "errors": errors or {}, "cat": data.catalogos, "sid": sid}
+    return {"v": values or {}, "errors": errors or {}, "cat": data.catalogos, "sid": sid,
+            "upload_fields": VISIT_UPLOAD_FIELDS, "ciudades": data.ciudades,
+            "clientes_pais_json": json.dumps(data.clientes_pais, ensure_ascii=False),
+            "ciudades_json": json.dumps(data.ciudades, ensure_ascii=False),
+            "objetivos_json": json.dumps(svc().objective_templates(), ensure_ascii=False)}
+
+
+LOG_ACCEPT = ".log,.txt,.csv,.json,.xml,.bin,.hex,.zip,.7z"
+
+# Campos de archivos del paso "Evidencias" de la nueva visita: (campo, categoría, etiqueta, accept).
+VISIT_UPLOAD_FIELDS = [
+    ("fotos_maquina", "Foto de la máquina", "Fotos de la máquina", "image/*"),
+    ("fotos_etiqueta", "Foto de etiqueta", "Fotos de etiquetas (placa, serial, POS)", "image/*"),
+    ("fotos_conexiones", "Foto de conexiones", "Fotos de conexiones y cableado", "image/*"),
+    ("capturas", "Captura de pantalla", "Capturas de pantalla", "image/*"),
+    ("logs_new5320", "Log del POS NEW5320", "Logs del POS NEW5320", LOG_ACCEPT),
+    ("logs_qibixx", "Log de Qibixx", "Logs de Qibixx", LOG_ACCEPT),
+    ("logs", "Log de la visita", "Otros logs de la visita (sniffer, diagnóstico)", LOG_ACCEPT),
+    ("documentos", "Documento", "Documentos", ""),
+]
+
+
+def _visit_files():
+    descripcion = request.form.get("descripcion_evidencias", "").strip()
+    files = []
+    for field, categoria, _, _ in VISIT_UPLOAD_FIELDS:
+        for fs in request.files.getlist(field):
+            if fs and fs.filename:
+                files.append((categoria, fs.filename, fs.read(), descripcion))
+    return files
 
 
 @bp.route("/visitas/nueva", methods=["GET", "POST"])
@@ -148,8 +181,10 @@ def visita_nueva():
     if request.method == "POST":
         draft = request.form.get("accion") == "borrador"
         try:
-            sid = svc().create_session(request.form, draft=draft)
-            flash(f"Sesión {sid} {'guardada como borrador' if draft else 'registrada'}.", "ok")
+            files = _visit_files()
+            sid = svc().create_session(request.form, draft=draft, files=files)
+            extra = f" con {len(files)} archivo(s) en su carpeta" if files else ""
+            flash(f"Sesión {sid} {'guardada como borrador' if draft else 'registrada'}{extra}.", "ok")
             return redirect(url_for("main.visita", sid=sid))
         except ValidationError as exc:
             flash(exc.message, "error")
@@ -198,7 +233,7 @@ def visita(sid):
     data = service.data()
     return render_template("visita_detalle.html", b=bundle, tab=tab, cat=data.catalogos,
                            totals=service.totals(sid, data), ev=service.evaluate_closure(sid, data),
-                           record_types=RECORD_TYPES, active="visitas")
+                           record_types=RECORD_TYPES, upload_categories=UPLOAD_CATEGORIES, active="visitas")
 
 
 # --------------------------------------------------------------------------
@@ -506,33 +541,25 @@ def evidencia_subir(sid):
     tipo = request.form.get("tipo_registro", "Visita")
     registro = request.form.get("registro_id", "").strip() or sid
     back = request.form.get("volver") or url_for("main.visita", sid=sid, tab="evidencias")
-    if not back.startswith("/"):
+    if not back.startswith("/") or back.startswith("//"):
         back = url_for("main.visita", sid=sid, tab="evidencias")
     if tipo not in RECORD_TYPES:
         abort(400)
-    upload = request.files.get("archivo")
-    if upload is None or not upload.filename:
-        flash("Seleccione un archivo.", "error")
+    categoria = request.form.get("categoria") or None
+    if categoria and categoria not in UPLOAD_CATEGORIES:
+        abort(400)
+    descripcion = request.form.get("descripcion", "").strip()
+    files = [(categoria, fs.filename, fs.read(), descripcion)
+             for fs in request.files.getlist("archivo") if fs and fs.filename]
+    if not files:
+        flash("Seleccione al menos un archivo.", "error")
         return redirect(back)
-    content = upload.read()
-    manager = ext()["evidence"]
-    store = ext()["store"]
     try:
-        with store._lock:
-            meta = manager.store(sid, registro if tipo != "Visita" else sid, upload.filename, content)
-            meta.update({"id": svc().next_id("EVD"), "sesion_id": sid, "tipo_registro": tipo,
-                         "registro_id": registro if tipo != "Visita" else sid,
-                         "descripcion": request.form.get("descripcion", "").strip()[:500]})
-            try:
-                store.write([("add_evidence", {"evidencia": meta})], f"Evidencia {meta['id']}")
-            except PendingWriteError:
-                raise
-            except Exception:
-                manager.remove_file(meta["ruta"])
-                raise
-        flash(f"Evidencia {meta['archivo']} guardada.", "ok")
-        if meta["advertencia"]:
-            flash(meta["advertencia"], "warn")
+        metas = svc().attach_files(sid, files, tipo, registro)
+        flash(f"{len(metas)} archivo(s) guardado(s) en la carpeta {sid}.", "ok")
+        for meta in metas:
+            if meta["advertencia"]:
+                flash(f"{meta['archivo']}: {meta['advertencia']}", "warn")
     except ValidationError as exc:
         flash(" ".join(exc.errors.values()) or exc.message, "error")
     except StoreError as exc:
@@ -551,8 +578,162 @@ def evidencia_ver(ruta):
     path = ext()["evidence"].resolve(ruta)
     if path is None or not path.is_file():
         abort(404)
-    inline = rec.get("tipo_archivo") in ("jpg", "jpeg", "png", "gif", "webp", "bmp", "pdf", "txt", "log")
-    return send_file(path, as_attachment=not inline, download_name=rec["archivo"])
+    tipo = rec.get("tipo_archivo")
+    mimetype = None
+    if tipo in TEXT_EXTENSIONS:
+        mimetype = "text/plain; charset=utf-8"
+    # Solo los informes generados por la plataforma se muestran como HTML.
+    is_report = tipo == "html" and rec.get("categoria") == CATEGORIA_INFORME
+    if tipo == "html" and not is_report:
+        mimetype = "text/plain; charset=utf-8"
+    inline = tipo in WEB_IMAGE_EXTENSIONS or tipo in TEXT_EXTENSIONS or tipo in ("pdf", "mp4") or is_report
+    return send_file(path, as_attachment=not inline, download_name=rec["archivo"], mimetype=mimetype)
+
+
+# --------------------------------------------------------------------------
+# Carpetas de visitas e informes
+# --------------------------------------------------------------------------
+
+@bp.route("/carpetas")
+def carpetas():
+    f = _args()
+    return render_template("carpetas.html", rows=svc().folders(f), f=f, active="carpetas")
+
+
+@bp.route("/carpetas/<sid>")
+def carpeta(sid):
+    _session_or_404(sid)
+    service = svc()
+    manager = ext()["evidence"]
+    sub = request.args.get("sub", "")
+    if sub and sub not in FOLDER_LABELS and sub not in LOG_SUBFOLDERS:
+        abort(404)
+    vista = "expediente" if request.args.get("vista") == "expediente" else "archivos"
+    ctx = report_context(service, sid, lambda ruta: url_for("main.evidencia_ver", ruta=ruta))
+    evidencias = ctx["b"]["evidencias"]
+    if sub in LOG_SUBFOLDERS:
+        shown = [e for e in evidencias if subfolder_of(e) == sub]
+    elif sub:
+        shown = ctx["groups"][sub]
+    else:
+        shown = evidencias
+    registered = {e["ruta"] for e in evidencias}
+    unregistered = manager.unregistered(sid, registered)
+    for u in unregistered:
+        u["sugerida"] = category_for_path(u["ruta"])
+    default_category = {"fotos": "Foto de la máquina", "logs": CATEGORIA_LOG, "videos": "Video",
+                        "documentos": "Documento", "otros": "Otro",
+                        **SUBFOLDER_CATEGORY}.get(sub, "Foto de la máquina")
+    for e in shown:
+        e["subcarpeta"] = subfolder_of(e)
+    return render_template("carpeta.html", **ctx, sub=sub, vista=vista, unregistered=unregistered,
+                           shown=shown, log_subfolders=LOG_SUBFOLDERS,
+                           log_counts={k: sum(1 for e in evidencias if subfolder_of(e) == k)
+                                       for k in LOG_SUBFOLDERS},
+                           categories=UPLOAD_CATEGORIES, default_category=default_category,
+                           text_exts=TEXT_EXTENSIONS, folder_path=str(manager.session_dir(sid)),
+                           can_open=os.name == "nt", active="carpetas")
+
+
+@bp.route("/carpetas/<sid>/ver")
+def carpeta_ver(sid):
+    _session_or_404(sid)
+    ruta = request.args.get("ruta", "")
+    rec = next((e for e in svc().data().evidencias if e["ruta"] == ruta and e["sesion_id"] == sid), None)
+    if rec is None or rec.get("tipo_archivo") not in TEXT_EXTENSIONS:
+        abort(404)
+    content, truncated = ext()["evidence"].read_text(ruta)
+    if content is None:
+        abort(404)
+    return render_template("carpeta_ver.html", e=rec, content=content, truncated=truncated,
+                           sub=subfolder_of(rec), active="carpetas")
+
+
+@bp.route("/carpetas/<sid>/informe", methods=["POST"])
+def carpeta_informe(sid):
+    _session_or_404(sid)
+    back = url_for("main.carpeta", sid=sid, sub="informes")
+    try:
+        meta = generate_visit_report(svc(), ext()["evidence"], sid)
+        flash(f"Informe generado: {meta['archivo']}", "ok")
+    except StoreError as exc:
+        resp = _write_errors(exc, back)
+        if resp:
+            return resp
+    nxt = request.form.get("volver", "")
+    return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else back)
+
+
+@bp.route("/reportes/informe", methods=["POST"])
+def reportes_informe():
+    sid = request.form.get("sid", "")
+    _session_or_404(sid)
+    try:
+        meta = generate_visit_report(svc(), ext()["evidence"], sid)
+        flash(f"Informe generado para {sid}: {meta['archivo']}", "ok")
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.reportes"))
+        if resp:
+            return resp
+    return redirect(url_for("main.reportes"))
+
+
+@bp.route("/carpetas/<sid>/descargar")
+def carpeta_zip(sid):
+    _session_or_404(sid)
+    buffer = build_visit_zip(svc(), ext()["evidence"], sid)
+    log.info("Carpeta de la visita %s descargada en .zip", sid)
+    return send_file(buffer, as_attachment=True, download_name=f"Visita_{sid}_{datetime.now():%Y%m%d}.zip",
+                     mimetype="application/zip")
+
+
+@bp.route("/carpetas/<sid>/abrir", methods=["POST"])
+def carpeta_abrir(sid):
+    _session_or_404(sid)
+    folder = ext()["evidence"].ensure_session_dir(sid)
+    if os.name == "nt" and not current_app.config.get("TESTING"):
+        os.startfile(str(folder))  # noqa: S606 - carpeta validada dentro de data/evidencias
+    flash(f"Carpeta abierta en el Explorador: {folder}", "ok")
+    return redirect(url_for("main.carpeta", sid=sid))
+
+
+@bp.route("/carpetas/<sid>/eliminar", methods=["POST"])
+def carpeta_eliminar(sid):
+    _session_or_404(sid)
+    if request.form.get("confirmar") != "si":
+        abort(400)
+    back = request.form.get("volver", "")
+    if not back.startswith("/") or back.startswith("//"):
+        back = url_for("main.carpeta", sid=sid)
+    try:
+        rec, trash = svc().delete_evidence(sid, request.form.get("id", ""))
+        donde = "Se movió a la papelera de la plataforma" if trash else "El archivo ya no estaba en disco"
+        flash(f"{rec['archivo']} eliminado de la visita. {donde}.", "ok")
+    except ValidationError as exc:
+        flash(" ".join(exc.errors.values()) or exc.message, "error")
+    except StoreError as exc:
+        resp = _write_errors(exc, back)
+        if resp:
+            return resp
+    return redirect(back)
+
+
+@bp.route("/carpetas/<sid>/registrar", methods=["POST"])
+def carpeta_registrar(sid):
+    _session_or_404(sid)
+    categoria = request.form.get("categoria") or None
+    if categoria and categoria not in UPLOAD_CATEGORIES:
+        abort(400)
+    try:
+        meta = svc().register_existing_file(sid, request.form.get("ruta", ""), categoria)
+        flash(f"Archivo {meta['archivo']} registrado.", "ok")
+    except ValidationError as exc:
+        flash(" ".join(exc.errors.values()) or exc.message, "error")
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.carpeta", sid=sid))
+        if resp:
+            return resp
+    return redirect(url_for("main.carpeta", sid=sid))
 
 
 # --------------------------------------------------------------------------
@@ -582,7 +763,10 @@ def reportes():
     data = service.data()
     seriales = sorted({s["serial_pos"] for s in sessions if s.get("serial_pos")
                        and s["serial_pos"] != S.PENDIENTE_CONFIRMAR})
-    return render_template("reportes.html", sessions=sessions, seriales=seriales,
+    visibles = {s["sesion_id"] for s in sessions}
+    informes = sorted((e for e in data.evidencias if e.get("categoria") == CATEGORIA_INFORME
+                       and e["sesion_id"] in visibles), key=lambda e: e.get("fecha", ""), reverse=True)
+    return render_template("reportes.html", sessions=sessions, seriales=seriales, informes=informes[:20],
                            options=service.filter_options(sessions), cat=data.catalogos, active="reportes")
 
 
@@ -620,7 +804,10 @@ def configuracion():
             log_tail = fh.readlines()[-25:]
     return render_template("configuracion.html", cat=data.catalogos, config=e["config"], paths=e["paths"],
                            backups=e["backups"].list(), pending=e["store"].pending(),
-                           log_tail=log_tail, editable=[c for c in S.CATALOGS if c[0] not in S.CATALOGS_FIXED],
+                           log_tail=log_tail, clientes_pais=data.clientes_pais, ciudades=data.ciudades,
+                           paired=list(S.CATALOG_PAIRS),
+                           editable=[c for c in S.CATALOGS if c[0] not in S.CATALOGS_FIXED
+                                     and c[0] not in S.CATALOGS_HIDDEN and c[0] not in S.CATALOG_PAIRS],
                            active="configuracion")
 
 
@@ -628,15 +815,22 @@ def configuracion():
 def catalogo_agregar():
     key = request.form.get("catalogo", "")
     value = " ".join(request.form.get("valor", "").split())
-    if key not in dict(S.CATALOGS) or key in S.CATALOGS_FIXED:
+    pais = request.form.get("pais", "").strip()
+    if key not in dict(S.CATALOGS) or key in S.CATALOGS_FIXED or key in S.CATALOGS_HIDDEN:
         abort(400)
     if not value or len(value) > 200:
         flash("Escriba un valor de máximo 200 caracteres.", "error")
         return redirect(url_for("main.configuracion"))
+    payload = {"catalog": key, "value": value}
+    if key in S.CATALOG_PAIRS:
+        if pais not in svc().data().catalogos["pais"]:
+            flash("Seleccione el país del cliente o de la ciudad.", "error")
+            return redirect(url_for("main.configuracion"))
+        payload["pair"] = pais
     try:
-        ext()["store"].write([("add_catalog_value", {"catalog": key, "value": value})],
-                             f"Valor de catálogo: {value}")
-        flash(f"'{value}' agregado al catálogo {S.CATALOG_LABELS[key]}.", "ok")
+        ext()["store"].write([("add_catalog_value", payload)], f"Valor de catálogo: {value}")
+        flash(f"'{value}' agregado al catálogo {S.CATALOG_LABELS[key]}"
+              f"{' (' + pais + ')' if key in S.CATALOG_PAIRS else ''}.", "ok")
     except StoreError as exc:
         resp = _write_errors(exc, url_for("main.configuracion"))
         if resp:

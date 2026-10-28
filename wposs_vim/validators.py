@@ -73,14 +73,34 @@ SESSION_REQUIRED = ["fecha", "responsable", "cliente", "fabricante", "modelo_maq
                     "modelo_pos", "objetivo", "tipo_prueba", "firmware"]
 
 
-def validate_session(data, catalogs, draft):
+def validate_session(data, catalogs, draft, ciudades=None, current=None):
+    """Valida la identificación de la sesión.
+
+    `ciudades` = {país: [ciudades]}. Un valor de catálogo que ya tenía el registro
+    (`current`) se acepta aunque ya no esté en la lista, para no forzar cambios en
+    visitas anteriores.
+    """
     errors = {}
+    current = current or {}
     _check_len(data, errors)
     _check_date(data, "fecha", errors)
     _check_date(data, "fecha_instalacion", errors)
     _check_time(data, "hora", errors)
-    _check_catalog(data, "tipo_prueba", catalogs["tipo_prueba"], errors)
-    _check_catalog(data, "pais", catalogs["pais"], errors)
+
+    def catalog(key, values):
+        if data.get(key) and data[key] != current.get(key):
+            _check_catalog(data, key, values, errors)
+
+    catalog("tipo_prueba", catalogs["tipo_prueba"])
+    catalog("pais", catalogs["pais"])
+    catalog("cliente", catalogs.get("cliente", []))
+    catalog("firmware", catalogs.get("firmware", []) + [S.PENDIENTE_CONFIRMAR])
+    if ciudades is not None and data.get("ciudad") and (
+            data["ciudad"] != current.get("ciudad") or data.get("pais") != current.get("pais")):
+        if not data.get("pais"):
+            errors["ciudad"] = "Seleccione primero el país."
+        elif data["ciudad"] not in ciudades.get(data["pais"], []):
+            errors["ciudad"] = f"La ciudad no corresponde a {data['pais']}."
     if draft:
         if not any(data.get(k) for k in SESSION_FIELDS):
             errors["cliente"] = "Registre al menos un dato para guardar el borrador."

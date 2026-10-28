@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de visita {{ b.sesion.sesion_id }} · WPOSS</title>
+<style>
+  :root { --text: #101828; --muted: #667085; --border: #e4e7ec; --soft: #f9fafb; --accent: #1d4ed8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef0f3; color: var(--text); font: 13.5px/1.5 "Segoe UI", -apple-system, Arial, sans-serif; }
+  .page { max-width: 900px; margin: 24px auto; background: #fff; padding: 40px 48px; border-radius: 4px; }
+  .head { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid var(--text); padding-bottom: 16px; margin-bottom: 8px; }
+  .head h1 { margin: 4px 0; font-size: 21px; }
+  .concept { text-align: right; }
+  .concept strong { display: block; font-size: 17px; }
+  .x-muted, .small { color: var(--muted); font-size: 12.5px; }
+  .x-sec { margin-top: 22px; break-inside: auto; }
+  .x-sec h2 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: #475467; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 0 0 10px; }
+  .x-sec h3 { font-size: 13px; margin: 14px 0 6px; }
+  .x-two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .x-two h3 { margin-top: 0; }
+  .x-two .x-kv { grid-template-columns: 130px 1fr; }
+  .x-kv { display: grid; grid-template-columns: 210px 1fr; gap: 4px 14px; margin: 0; }
+  .x-kv dt { color: var(--muted); }
+  .x-kv dd { margin: 0; overflow-wrap: anywhere; }
+  .x-pre { white-space: pre-wrap; }
+  .x-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .x-table th, .x-table td { border: 1px solid var(--border); padding: 5px 7px; text-align: left; vertical-align: top; }
+  .x-table th { background: var(--soft); font-weight: 600; }
+  .x-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin: 8px 0; break-inside: avoid; }
+  .x-card header { margin-bottom: 6px; }
+  .x-state { float: right; font-weight: 600; }
+  .x-list { margin: 2px 0 0; padding-left: 18px; font-size: 12.5px; color: #475467; }
+  .x-summary { white-space: pre-wrap; background: var(--soft); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font: 12.5px/1.5 Consolas, monospace; }
+  .x-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
+  .x-gallery figure { margin: 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; break-inside: avoid; }
+  .x-gallery img { display: block; width: 100%; height: 160px; object-fit: cover; background: var(--soft); }
+  .x-gallery figcaption { padding: 6px 8px; font-size: 12px; color: #475467; }
+  .x-file { display: block; padding: 50px 8px; text-align: center; background: var(--soft); }
+  .x-warn { color: #b42318; font-size: 12px; }
+  a { color: var(--accent); }
+  .foot { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 10px; }
+  @media (max-width: 640px) { .page { padding: 20px 16px; margin: 0; } .head, .x-two { display: block; } .concept { text-align: left; margin-top: 8px; } .x-kv { grid-template-columns: 1fr; } .x-table { display: block; overflow-x: auto; } }
+  @media print { body { background: #fff; } .page { margin: 0; padding: 0; max-width: none; } @page { margin: 15mm; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div>
+      <div class="x-muted">WPOSS · Checklist de Pruebas y Validación Técnica — Vending NEW5320</div>
+      <h1>Informe de visita {{ b.sesion.sesion_id }}</h1>
+      <div>{{ b.sesion.cliente_label or '—' }} · {{ b.sesion.fabricante }} {{ b.sesion.modelo_maquina }} · POS {{ b.sesion.modelo_pos }} · FW {{ b.sesion.firmware or '—' }}</div>
+    </div>
+    <div class="concept">
+      <span class="x-muted">Concepto final</span>
+      <strong>{{ b.cierre.concepto if b.cierre and b.cierre.concepto else 'Sin cierre registrado' }}</strong>
+    </div>
+  </header>
+  {% include "_expediente.html" %}
+  <p class="x-muted foot">Generado por WPOSS Vending Integration Manager el {{ generado }}. Un cierre satisfactorio aplica únicamente al alcance y combinación de equipos y versiones efectivamente probados. Para guardarlo como PDF use Imprimir (Ctrl+P) → Guardar como PDF.</p>
+</main>
+</body>
+</html>

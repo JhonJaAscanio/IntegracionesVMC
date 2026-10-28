@@ -1,0 +1,166 @@
+{#- Expediente completo de una visita. Se usa en la vista de carpeta y en el informe exportado.
+    Variables: b, totals, ev, summary, groups, folder_labels, image_exts, file_link, incident_history. -#}
+{% set s = b.sesion %}
+{% set c = b.cierre %}
+<section class="x-sec">
+  <h2>Identificación de la visita</h2>
+  <dl class="x-kv">
+    <dt>Sesión ID</dt><dd>{{ s.sesion_id }}</dd>
+    <dt>Fecha y hora</dt><dd>{{ s.fecha or '—' }} {{ s.hora }}</dd>
+    <dt>Cliente</dt><dd>{{ s.cliente or '—' }}</dd>
+    <dt>Comercio / punto de venta</dt><dd>{{ s.comercio or '—' }}</dd>
+    <dt>Ubicación</dt><dd>{{ s.ciudad or '—' }}{{ ', ' ~ s.pais if s.pais }}</dd>
+    <dt>Responsable</dt><dd>{{ s.responsable or '—' }}</dd>
+    <dt>Participantes</dt><dd class="x-pre">{{ s.participantes or '—' }}</dd>
+    <dt>Tipo de prueba</dt><dd>{{ s.tipo_prueba or '—' }}</dd>
+    <dt>Objetivo</dt><dd class="x-pre">{{ s.objetivo or '—' }}</dd>
+    <dt>Estado</dt><dd>{{ s.estado_integracion }}</dd>
+  </dl>
+</section>
+
+<section class="x-sec x-two">
+  <div>
+    <h3>Máquina vending</h3>
+    <dl class="x-kv">
+      <dt>Fabricante</dt><dd>{{ s.fabricante or '—' }}</dd>
+      <dt>Modelo</dt><dd>{{ s.modelo_maquina or '—' }}</dd>
+      <dt>Serial</dt><dd>{{ s.serial_maquina or '—' }}</dd>
+    </dl>
+  </div>
+  <div>
+    <h3>POS</h3>
+    <dl class="x-kv">
+      <dt>Modelo</dt><dd>{{ s.modelo_pos or '—' }}</dd>
+      <dt>Serial</dt><dd>{{ s.serial_pos or '—' }}</dd>
+      <dt>Firmware NEW5320</dt><dd>{{ s.firmware or '—' }}</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="x-sec">
+  <h2>Versiones de software</h2>
+  <dl class="x-kv">
+    <dt>MDB — Estándar / Especificación</dt><dd>{{ s.mdb_estandar or '—' }}</dd>
+    <dt>MDB — Versión de implementación</dt><dd>{{ s.mdb_version or '—' }}</dd>
+    <dt>MDB — Módulo de software</dt><dd>{{ s.mdb_modulo or '—' }}</dd>
+    <dt>Versión Financiera</dt><dd>{{ s.version_financiera or '—' }}</dd>
+    <dt>Versión Agente Polaris</dt><dd>{{ s.version_polaris or '—' }}</dd>
+    <dt>Configuraciones relevantes</dt><dd class="x-pre">{{ s.configuraciones or '—' }}</dd>
+    <dt>Versión anterior → nueva</dt><dd>{{ s.version_anterior or '—' }} → {{ s.version_nueva or '—' }}</dd>
+    <dt>Fecha de instalación</dt><dd>{{ s.fecha_instalacion or '—' }}</dd>
+    <dt>Compilación / checksum</dt><dd>{{ s.checksum or '—' }}</dd>
+    <dt>Compatibilidad prevista</dt><dd>{{ s.compatibilidad or '—' }}</dd>
+    <dt>Observaciones</dt><dd class="x-pre">{{ s.observaciones or '—' }}</dd>
+  </dl>
+</section>
+
+<section class="x-sec">
+  <h2>Revisión física y eléctrica</h2>
+  {% if b.revisiones %}
+  <table class="x-table">
+    <thead><tr><th>Ítem</th><th>Resultado</th><th>Observaciones</th><th>Evidencia</th></tr></thead>
+    <tbody>
+    {% for r in b.revisiones %}
+      <tr><td>{{ r.item }}</td><td>{{ r.resultado or '—' }}</td><td class="x-pre">{{ r.observaciones }}</td><td>{{ r.evidencia|replace(';', '; ') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="x-muted">Sin revisión registrada.</p>{% endif %}
+</section>
+
+<section class="x-sec">
+  <h2>Casos de prueba</h2>
+  <p class="x-muted">Planificadas {{ totals.planificadas }} · Ejecutadas {{ totals.ejecutadas }} · Aprobadas {{ totals.aprobadas }} · Fallidas {{ totals.fallidas }} · Bloqueadas {{ totals.bloqueadas }} · Pendientes {{ totals.pendientes }}</p>
+  {% for t in b.pruebas %}
+  <article class="x-card">
+    <header><strong>{{ t.id }}</strong> · {{ t.componente }} · {{ t.tipo_verificacion }} <span class="x-state">{{ t.estado or 'Sin estado' }}</span></header>
+    <dl class="x-kv">
+      <dt>Objetivo</dt><dd class="x-pre">{{ t.objetivo or '—' }}</dd>
+      <dt>Precondiciones</dt><dd class="x-pre">{{ t.precondiciones or '—' }}</dd>
+      <dt>Procedimiento</dt><dd class="x-pre">{{ t.procedimiento or '—' }}</dd>
+      <dt>Resultado esperado</dt><dd class="x-pre">{{ t.resultado_esperado or '—' }}</dd>
+      <dt>Resultado obtenido</dt><dd class="x-pre">{{ t.resultado_obtenido or '—' }}</dd>
+      <dt>Observaciones</dt><dd class="x-pre">{{ t.observaciones or '—' }}</dd>
+      <dt>Responsable</dt><dd>{{ t.responsable or '—' }}</dd>
+      <dt>Incidencia asociada</dt><dd>{{ t.incidencia or '—' }}</dd>
+      <dt>Siguiente acción</dt><dd>{{ t.siguiente_accion or '—' }}</dd>
+    </dl>
+  </article>
+  {% else %}<p class="x-muted">Sin casos de prueba.</p>{% endfor %}
+</section>
+
+<section class="x-sec">
+  <h2>Incidencias</h2>
+  {% for i in b.incidencias %}
+  <article class="x-card">
+    <header><strong>{{ i.id }}</strong> · {{ i.fecha }} · {{ i.severidad or '—' }} <span class="x-state">{{ i.estado or '—' }}</span>{% if i.es_ejemplo %} <em class="x-muted">(fila de ejemplo)</em>{% endif %}</header>
+    <dl class="x-kv">
+      <dt>Descripción</dt><dd class="x-pre">{{ i.descripcion or '—' }}</dd>
+      <dt>Componente y versión</dt><dd>{{ i.componente_version or '—' }}</dd>
+      <dt>Prueba asociada</dt><dd>{{ i.prueba_id or '—' }}</dd>
+      <dt>Pasos para reproducir</dt><dd class="x-pre">{{ i.pasos or '—' }}</dd>
+      <dt>Resultado esperado</dt><dd class="x-pre">{{ i.resultado_esperado or '—' }}</dd>
+      <dt>Resultado obtenido</dt><dd class="x-pre">{{ i.resultado_obtenido or '—' }}</dd>
+      <dt>Responsable · Ticket</dt><dd>{{ i.responsable or '—' }} · {{ i.ticket or '—' }}</dd>
+      <dt>Siguiente acción</dt><dd>{{ i.siguiente_accion or '—' }}</dd>
+      <dt>Resultado de la reprueba</dt><dd class="x-pre">{{ i.resultado_reprueba or '—' }}</dd>
+    </dl>
+    {% set hist = incident_history.get(i.id, []) %}
+    {% if hist %}
+    <p class="x-muted">Historial:</p>
+    <ul class="x-list">{% for h in hist %}<li>{{ h.fecha }} — {{ h.accion }}{% if h.campo %}: {{ h.campo }} “{{ h.anterior|truncate(60) }}” → “{{ h.nuevo|truncate(60) }}”{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+  </article>
+  {% else %}<p class="x-muted">Sin incidencias.</p>{% endfor %}
+</section>
+
+<section class="x-sec">
+  <h2>Cierre de sesión</h2>
+  <dl class="x-kv">
+    <dt>Concepto final</dt><dd><strong>{{ c.concepto if c and c.concepto else 'Sin cierre registrado' }}</strong></dd>
+    {% if c %}
+    <dt>Fecha / Responsable del cierre</dt><dd>{{ c.fecha_cierre or '—' }} · {{ c.responsable_cierre or '—' }}</dd>
+    <dt>Versiones y equipos cubiertos</dt><dd class="x-pre">{{ c.versiones_cubiertas or '—' }}</dd>
+    <dt>Pendientes</dt><dd class="x-pre">{{ c.pendientes_area or '—' }}</dd>
+    {% endif %}
+    <dt>Incidencias abiertas</dt><dd>{{ totals.incidencias_abiertas }}</dd>
+  </dl>
+  {% if ev.bloqueos %}<p class="x-muted">Criterios no cumplidos para “Apto para piloto”: {{ ev.bloqueos|join(' ') }}</p>{% endif %}
+  <h3>Resumen para correo</h3>
+  <pre class="x-summary">{{ summary }}</pre>
+</section>
+
+<section class="x-sec">
+  <h2>Evidencias</h2>
+  {% set fotos = groups.fotos %}
+  {% if fotos %}
+  <h3>Fotos ({{ fotos|length }})</h3>
+  <div class="x-gallery">
+    {% for e in fotos %}
+    <figure>
+      {% if e.tipo_archivo in image_exts %}<a href="{{ file_link(e.ruta) }}" target="_blank" rel="noopener"><img src="{{ file_link(e.ruta) }}" alt="{{ e.categoria or 'Foto' }}: {{ e.archivo }}" loading="lazy"></a>
+      {% else %}<a href="{{ file_link(e.ruta) }}" class="x-file">{{ e.archivo }}</a>{% endif %}
+      <figcaption><strong>{{ e.categoria or 'Foto' }}</strong>{% if e.registro_id and e.registro_id != s.sesion_id %} · {{ e.registro_id }}{% endif %}<br>{{ e.descripcion or e.archivo }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% for key in ['logs', 'videos', 'documentos', 'informes', 'otros'] %}
+    {% set sections = log_groups.items() if key == 'logs' else [(folder_labels[key], groups[key])] %}
+    {% for title, items in sections %}
+    {% if items %}
+    <h3>{{ title }} ({{ items|length }})</h3>
+    <table class="x-table">
+      <thead><tr><th>Archivo</th><th>Categoría</th><th>Asociado a</th><th>Descripción</th><th>Fecha</th></tr></thead>
+      <tbody>
+      {% for e in items %}
+        <tr><td><a href="{{ file_link(e.ruta) }}">{{ e.archivo }}</a>{% if e.advertencia %}<br><span class="x-warn">{{ e.advertencia }}</span>{% endif %}</td>
+          <td>{{ e.categoria or '—' }}</td><td>{{ e.tipo_registro }} {{ e.registro_id }}</td><td>{{ e.descripcion or '—' }}</td><td>{{ e.fecha }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% endfor %}
+  {% endfor %}
+  {% if not b.evidencias %}<p class="x-muted">Sin evidencias adjuntas.</p>{% endif %}
+</section>

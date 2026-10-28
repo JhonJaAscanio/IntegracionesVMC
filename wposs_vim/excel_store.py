@@ -309,11 +309,53 @@ def _create_app_sheet(wb, name, header_src):
     return ws
 
 
+def _replace_catalog(wb, key, legacy, new):
+    """Sustituye un catálogo de Listas solo si conserva exactamente los valores `legacy`.
+
+    Deja constancia en App_Historial. Los registros que ya usan valores anteriores no cambian.
+    """
+    col = catalog_column(wb, key)
+    if col is None:
+        return False
+    ws = wb[S.SHEET_LISTAS]
+    current = [norm_value(ws.cell(r, col).value) for r in range(2, ws.max_row + 1)]
+    current = [v for v in current if v]
+    if current != list(legacy):
+        return False
+    for r in range(2, ws.max_row + 1):
+        ws.cell(r, col).value = None
+    for i, value in enumerate(new, start=2):
+        set_cell(ws.cell(i, col), value)
+    hist = sheet(wb, S.SHEET_APP_HISTORIAL)
+    hist.append({"fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "tipo_registro": "Catálogo",
+                 "registro_id": S.CATALOG_LABELS[key], "campo": "Valores",
+                 "anterior": "; ".join(legacy), "nuevo": "; ".join(new),
+                 "accion": "Catálogo actualizado por definición de WPOSS"})
+    log.info("Catálogo '%s' actualizado: %s", S.CATALOG_LABELS[key], ", ".join(new))
+    return True
+
+
+def read_pairs(wb, key):
+    """Pares (valor, país) de un catálogo emparejado en Listas, fila a fila."""
+    col = catalog_column(wb, key)
+    pair_col = catalog_column(wb, S.CATALOG_PAIRS[key])
+    if col is None or pair_col is None:
+        return []
+    ws = wb[S.SHEET_LISTAS]
+    pairs = []
+    for r in range(2, ws.max_row + 1):
+        value = norm_value(ws.cell(r, col).value)
+        if value:
+            pairs.append((value, norm_value(ws.cell(r, pair_col).value)))
+    return pairs
+
+
 def ensure_schema(wb):
     """Agrega columnas, catálogos y hojas propias de la aplicación si faltan.
 
-    Nunca modifica celdas existentes del libro original. Devuelve True si hubo
-    cambios.
+    No modifica celdas de datos existentes. La única sustitución es la de los catálogos
+    de países y tipos de prueba definidos por WPOSS (ver `_replace_catalog`), y solo si
+    aún conservan los valores anteriores. Devuelve True si hubo cambios.
     """
     for name in S.ORIGINAL_SHEETS:
         if name not in wb.sheetnames:
@@ -334,6 +376,16 @@ def ensure_schema(wb):
             seeds = []
             if key == "pais":
                 seeds = list(S.SEED_PAISES)
+            elif key == "cliente":
+                seeds = [c for c, _ in S.SEED_CLIENTES]
+            elif key == "cliente_pais":
+                seeds = [p for _, p in S.SEED_CLIENTES]
+            elif key == "ciudad":
+                seeds = [c for cities in S.SEED_CIUDADES.values() for c in cities]
+            elif key == "ciudad_pais":
+                seeds = [p for p, cities in S.SEED_CIUDADES.items() for _ in cities]
+            elif key == "firmware":
+                seeds = list(S.SEED_FIRMWARE)
             elif key == "fabricante":
                 ident = sheet(wb, S.SHEET_ID)
                 for rec in ident.rows():
@@ -355,6 +407,11 @@ def ensure_schema(wb):
         if name not in wb.sheetnames:
             _create_app_sheet(wb, name, header_src)
             changed = True
+    changed |= _add_columns(wb[S.SHEET_APP_EVIDENCIAS], S.APP_EVIDENCIAS_COLUMNS, S.APP_EVIDENCIAS_ADDED, 18)
+
+    # Listas definidas por WPOSS que sustituyen a las anteriores, solo si siguen sin cambios.
+    changed |= _replace_catalog(wb, "pais", S.LEGACY_SEED_PAISES, S.SEED_PAISES)
+    changed |= _replace_catalog(wb, "tipo_prueba", S.LEGACY_TIPOS_PRUEBA, S.TIPOS_PRUEBA)
 
     # Metadatos de sesiones que existían antes de la aplicación.
     meta = sheet(wb, S.SHEET_APP_SESIONES)
@@ -452,6 +509,10 @@ class Data:
         self.historial = list(sheet(wb, S.SHEET_APP_HISTORIAL).rows())
         self.contadores = {r["prefijo"]: r["ultimo"] for r in sheet(wb, S.SHEET_APP_CONTADORES).rows()}
         self.catalogos = read_catalogs(wb)
+        self.clientes_pais = dict(read_pairs(wb, "cliente"))
+        self.ciudades = {}
+        for ciudad, pais in read_pairs(wb, "ciudad"):
+            self.ciudades.setdefault(pais, []).append(ciudad)
 
 
 def excel_lock_present(path):
@@ -502,6 +563,8 @@ class ExcelStore:
             with self._lock:
                 wb = open_workbook(paths.trabajo)
                 if ensure_schema(wb):
+                    if self.before_write:
+                        self.before_write()
                     self._save_atomic(wb)
                     log.info("Esquema de la copia de trabajo actualizado.")
 

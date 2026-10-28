@@ -14,7 +14,7 @@
     {% for sid, r in summary.items() %}
       <tr>
         <td class="mono"><a href="{{ url_for('main.visita', sid=sid, tab='revision') }}">{{ sid }}</a></td>
-        <td class="truncate">{{ r.sesion.cliente or '—' }}</td>
+        <td class="truncate">{{ r.sesion.cliente_label or '—' }}</td>
         <td class="num">{{ r.total or '—' }}</td>
         {% for e in cat.estados %}<td class="num {{ 'tone-' ~ (e|estado_clase) if r.estados[e] }}">{{ r.estados[e] or '' }}</td>{% endfor %}
         <td class="right"><a class="btn btn-sm" href="{{ url_for('main.visita', sid=sid, tab='revision') }}">{{ 'Abrir' if r.total else 'Iniciar' }}</a></td>

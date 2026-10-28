@@ -179,7 +179,7 @@ def test_09_resumen_para_correo(client, app, sid):
     text = client.get(f"/visitas/{sid}/resumen.txt").get_data(as_text=True)
     assert text.startswith(f"Resumen de visita — Sesión {sid}\n")
     assert "Máquina: Fabricante QA Modelo QA-1 (Serial: SM-001)" in text
-    assert "POS: NEW5320 (Serial: POS-SERIAL-1) — Firmware: 13.0.30" in text
+    assert "POS: NEW5320 (Serial: POS-SERIAL-1) — Firmware: 13.0.22" in text
     assert "MDB: MDB 4.2 / 1.0 / mdb_mod" in text
     assert "Resultado de pruebas: 1/2 ejecutadas — Aprobadas: 1, Fallidas: 0, Bloqueadas: 0, Pendientes: 1" in text
     assert "Concepto final: Pendiente" in text

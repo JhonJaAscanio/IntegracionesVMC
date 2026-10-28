@@ -85,7 +85,7 @@
       <tr data-href="{{ url_for('main.visita', sid=s.sesion_id) }}">
         <td><a href="{{ url_for('main.visita', sid=s.sesion_id) }}" class="mono">{{ s.sesion_id }}</a></td>
         <td>{{ s.fecha or '—' }}</td>
-        <td class="truncate">{{ s.cliente or '—' }}</td>
+        <td class="truncate">{{ s.cliente_label or '—' }}</td>
         <td>{{ s.fabricante or '—' }} <span class="muted">{{ s.modelo_maquina }}</span></td>
         <td class="mono">{{ s.firmware or '—' }}</td>
         <td>{{ m.badge(s.estado_integracion) }}</td>

@@ -67,7 +67,8 @@ Integraciones VMC/
 ├── data/
 │   ├── original/          Copia íntegra del original + ORIGEN.txt con su SHA-256
 │   ├── trabajo/           WPOSS_Vending_Datos.xlsx  ← libro de trabajo (datos reales)
-│   ├── evidencias/SES-xxx/  Archivos adjuntos por sesión
+│   ├── evidencias/SES-xxx/  Carpeta de cada visita (fotos, logs, videos, documentos, informes, otros)
+│   ├── papelera/SES-xxx/    Archivos eliminados de una visita (recuperables)
 │   ├── pendientes/        Cambios que no pudieron escribirse (Excel abierto)
 │   └── exportaciones/     Exportaciones generadas
 ├── respaldos/             Copias de seguridad con fecha y hora
@@ -93,14 +94,33 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 |---|---|
 | Dashboard | Indicadores calculados desde el libro, con filtros por fecha, cliente, fabricante, modelo, firmware y estado. Sin datos muestra un estado vacío, nunca cifras ficticias. |
 | Visitas e integraciones | Histórico con búsqueda, filtros, orden y paginación. Cada fila abre la ficha de la sesión. |
-| Nueva visita | Formulario en 4 pasos. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
+| Nueva visita | Formulario en 5 pasos; el último adjunta fotos, logs y documentos a la carpeta de la visita. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
 | Ficha de la sesión | Pestañas Resumen, Revisión física, Pruebas, Incidencias, Evidencias e Historial. |
 | Revisión física y eléctrica | Crea los 8 ítems del checklist por sesión; permite ítems adicionales. |
 | Casos de prueba | El ID se genera según el componente (MDB-004…). Una prueba **nunca** se aprueba sola: Aprobado/Fallido exigen resultado obtenido, y cambiar de Pendiente exige resultado esperado. |
 | Incidencias | Desde una prueba Fallida o Bloqueada, **Crear incidencia** precarga sesión, componente, versión y resultados. Cada cambio de estado queda en el historial. Editar una prueba no cierra sus incidencias. |
 | Cierre de sesión | Totales equivalentes a las fórmulas del libro, criterios de aceptación, concepto sugerido (orientativo), pendientes por responsable y **resumen para correo** con botón Copiar. |
-| Reportes | Exportar a Excel (libro nuevo), comparar 2–6 sesiones, pruebas por serial de POS e historial de un modelo. El **informe** de cada sesión se imprime o guarda como PDF desde el navegador. |
+| Carpetas de visitas | Una carpeta por visita con sus archivos y todos sus datos; genera el informe y descarga la carpeta en .zip (ver sección 6). |
+| Informes y reportes | Informe completo por visita, exportar a Excel (libro nuevo), comparar 2–6 sesiones, pruebas por serial de POS e historial de un modelo. |
 | Configuración y respaldos | Catálogos, criterios de cierre, retención de respaldos, restauración, cambios pendientes y log. |
+
+### Listas de la visita
+
+| Campo | Valores | Comportamiento |
+|---|---|---|
+| Cliente | DATAFAST, MEDIANET, ATC, PROMERICA CR | Al elegirlo se selecciona su país (DATAFAST y MEDIANET → Ecuador, ATC → Bolivia, PROMERICA CR → Costa Rica). |
+| Comercio / punto de venta | Texto libre | Nombre del comercio o ubicación de la máquina (columna nueva al final de *Identificación y Versiones*). |
+| País | Ecuador, Costa Rica, Bolivia | Carga las ciudades del país. |
+| Ciudad | Ciudades principales del país | Solo se aceptan ciudades del país elegido. |
+| Firmware NEW5320 | 13.0.11, 13.0.13, 13.0.14, 13.0.15, 13.0.17, 13.0.22 | Admite también “Pendiente de confirmar”. |
+| Tipo de prueba | Nueva Integración, Reintegración, Validación de correcciones, Integración de seguimiento | Propone el **objetivo de la sesión**, que aparece en el informe. Si el objetivo ya fue editado a mano, no se sobrescribe. |
+
+- Las listas están en la hoja *Listas* del libro y se amplían en *Configuración y respaldos*
+  (clientes y ciudades se agregan junto con su país).
+- Los textos de objetivo por tipo de prueba están en `config.json` → `sesiones.objetivos_por_tipo`.
+- Al iniciar, si el libro aún tiene la lista anterior de países o los tipos de prueba originales del
+  checklist, se reemplazan por los nuevos (antes se crea un respaldo y el cambio queda en
+  *App_Historial*). Las visitas anteriores conservan sus valores y se pueden editar sin cambiarlos.
 
 ### Criterios de cierre
 
@@ -132,12 +152,53 @@ antes de registrar datos en la aplicación**. Si el libro está abierto:
 
 No edite el libro de trabajo en Excel mientras la aplicación tenga cambios pendientes.
 
-## 6. Evidencias
+## 6. Carpetas de visitas, evidencias e informes
 
-- Se guardan en `data/evidencias/<Sesión ID>/`; el libro solo guarda la **ruta relativa**
-  (columna *Evidencia* del registro y hoja *App_Evidencias* con tamaño, SHA-256 y fecha).
-- Extensiones permitidas y tamaño máximo (25 MB) en `config.json` → `evidencias`.
+Cada visita tiene su propia carpeta, creada al registrarla:
+
+```
+data/evidencias/SES-004/
+├── fotos/        maquina_*.jpg, etiqueta_*.jpg, conexiones_*.jpg, captura_*.png
+├── logs/         otros logs de la visita (sniffer, diagnóstico)
+│   ├── new5320/  logs del POS NEW5320
+│   └── qibixx/   logs de Qibixx
+├── videos/
+├── documentos/
+├── informes/     Informe_SES-004_AAAAMMDD_HHMMSS.html (generados por la plataforma)
+└── otros/
+```
+
+- **Al crear la visita**, el paso 5 *Evidencias* permite adjuntar varias fotos de la máquina, de
+  etiquetas (placa, serial, POS), de conexiones, capturas, documentos y logs. Los logs se separan
+  en tres campos: **Logs del POS NEW5320** (`logs/new5320/`), **Logs de Qibixx** (`logs/qibixx/`)
+  y **Otros logs de la visita** (`logs/`). Se guardan en la
+  misma operación que la visita.
+- **Antes de guardar**, cada archivo seleccionado aparece en una lista con miniatura y botón
+  **Quitar**. Se pueden agregar más archivos en varias selecciones sin perder los anteriores.
+- **Después de guardar**, cada foto o archivo de la carpeta (y de la pestaña Evidencias de la
+  ficha) tiene un botón **Eliminar** con confirmación. El archivo no se borra: se mueve a
+  `data/papelera/<Sesión ID>/` y la eliminación queda en *App_Historial*. Para recuperarlo,
+  copie el archivo de la papelera a la carpeta de la visita y use *Registrar*.
+- **Carpetas de visitas** (menú lateral) muestra una carpeta por visita. Dentro de cada una:
+  - *Archivos*: subcarpetas, galería de fotos, visor de logs en la página y formulario para
+    agregar más archivos.
+  - *Datos de la visita*: todos los datos (identificación, equipos, versiones, revisión física,
+    pruebas, incidencias con historial, cierre y resumen para correo).
+  - **Generar informe**: crea un informe HTML completo en `informes/`, con las fotos enlazadas.
+    Se abre en el navegador y se guarda como PDF con *Imprimir → Guardar como PDF*.
+  - **Descargar .zip**: la carpeta completa con un informe actualizado y `datos_visita.xlsx`.
+  - **Abrir en Explorador**: abre la carpeta en el Explorador de Windows.
+  - Si copia archivos a la carpeta desde el Explorador, aparecen en *Archivos copiados
+    manualmente* y se pueden **registrar** con su categoría.
+- **Informes y reportes** (menú lateral) también permite generar el informe de cualquier visita y
+  lista los últimos informes generados.
+- El libro guarda solo la **ruta relativa** de cada archivo (columna *Evidencia* del registro y hoja
+  *App_Evidencias* con categoría, tamaño, SHA-256 y fecha). Nunca guarda archivos dentro del Excel.
+- Extensiones permitidas, tamaño máximo por archivo (25 MB) y por envío (200 MB) en
+  `config.json` → `evidencias`.
 - Los nombres se normalizan y nunca se sobrescribe un archivo existente (`foto.jpg`, `foto-1.jpg`…).
+- Si el libro está abierto en Excel al guardar, los archivos se conservan en la carpeta y su registro
+  queda en cola junto con la visita.
 - En archivos de texto/log se buscan secuencias con formato de número de tarjeta y se muestra una
   advertencia. **Revise y redacte los logs de transacciones antes de adjuntarlos**: no adjunte
   credenciales, claves ni números completos de tarjetas.

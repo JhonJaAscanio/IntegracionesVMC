@@ -22,7 +22,7 @@
           {{ m.label('sesion_id', 'Sesión ID', True) }}
           <select id="f-sesion_id" name="sesion_id" data-reload-on-change="sesion">
             <option value="">Seleccione…</option>
-            {% for s in sesiones %}<option value="{{ s.sesion_id }}" {{ 'selected' if s.sesion_id == v.get('sesion_id') }}>{{ s.sesion_id }} · {{ s.cliente|truncate(40) }}</option>{% endfor %}
+            {% for s in sesiones %}<option value="{{ s.sesion_id }}" {{ 'selected' if s.sesion_id == v.get('sesion_id') }}>{{ s.sesion_id }} · {{ s.cliente_label|truncate(40) }}</option>{% endfor %}
           </select>
           {{ m.err(errors, 'sesion_id') }}
         </div>

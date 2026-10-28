@@ -7,10 +7,11 @@
   <div>
     <a class="back" href="{{ url_for('main.visitas') }}"><svg class="i"><use href="#i-back"/></svg>Visitas</a>
     <h1><span class="mono">{{ s.sesion_id }}</span> {{ m.badge(s.estado_integracion) }}{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</h1>
-    <p class="muted">{{ s.cliente or 'Cliente sin registrar' }} · {{ s.fecha or 'sin fecha' }}{% if s.hora %} {{ s.hora }}{% endif %}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
+    <p class="muted">{{ s.cliente_label or 'Cliente sin registrar' }} · {{ s.fecha or 'sin fecha' }}{% if s.hora %} {{ s.hora }}{% endif %}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
   </div>
   <div class="actions">
     <a class="btn" href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}"><svg class="i"><use href="#i-edit"/></svg>Editar</a>
+    <a class="btn" href="{{ url_for('main.carpeta', sid=s.sesion_id) }}"><svg class="i"><use href="#i-folder"/></svg>Carpeta</a>
     <a class="btn" href="{{ url_for('main.informe', sid=s.sesion_id) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-print"/></svg>Informe</a>
     <a class="btn btn-primary" href="{{ url_for('main.cierre', sid=s.sesion_id) }}"><svg class="i"><use href="#i-flag"/></svg>{{ 'Ver cierre' if b.cierre else 'Cerrar sesión' }}</a>
   </div>
@@ -222,7 +223,9 @@
           {% for t in b.pruebas %}<option value="{{ t.id }}" data-type="Prueba">{{ t.id }} · {{ t.objetivo|truncate(50) }}</option>{% endfor %}
           {% for i in b.incidencias %}<option value="{{ i.id }}" data-type="Incidencia">{{ i.id }} · {{ i.descripcion|truncate(50) }}</option>{% endfor %}
         </select></div>
-      <div class="field wide"><label for="ev-file">Archivo</label><input id="ev-file" type="file" name="archivo" required></div>
+      <div class="field"><label for="ev-cat">Categoría</label>
+        <select id="ev-cat" name="categoria"><option value="">Según el tipo de archivo</option>{% for c in upload_categories %}<option>{{ c }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="ev-file">Archivos</label><input id="ev-file" type="file" name="archivo" multiple required></div>
       <div class="field wide"><label for="ev-desc">Descripción</label><input id="ev-desc" name="descripcion" maxlength="500" placeholder="Foto de conexión MDB, log del sniffer…"></div>
     </div>
     <p class="note small">No adjunte credenciales, claves ni datos completos de tarjetas. Revise y redacte los logs de transacciones antes de guardarlos.</p>
@@ -230,20 +233,21 @@
   </form>
 </section>
 <section class="panel">
-  <div class="panel-head"><h2>Archivos de la sesión</h2><span class="muted small">data/evidencias/{{ s.sesion_id }}/</span></div>
+  <div class="panel-head"><h2>Archivos de la sesión</h2><a class="link" href="{{ url_for('main.carpeta', sid=s.sesion_id) }}">Abrir la carpeta de la visita</a></div>
   {% if b.evidencias %}
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>Archivo</th><th>Asociado a</th><th>Descripción</th><th class="num">Tamaño</th><th>Fecha</th></tr></thead>
+    <thead><tr><th>Archivo</th><th>Asociado a</th><th>Descripción</th><th class="num">Tamaño</th><th>Fecha</th><th></th></tr></thead>
     <tbody>
     {% for e in b.evidencias %}
       <tr>
         <td><a class="file-link" href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-file"/></svg>{{ e.archivo }}</a>
           {% if e.advertencia %}<div class="field-error small">{{ e.advertencia }}</div>{% endif %}</td>
-        <td class="small">{{ e.tipo_registro }} <span class="mono">{{ e.registro_id }}</span></td>
+        <td class="small">{{ e.tipo_registro }} <span class="mono">{{ e.registro_id }}</span>{% if e.categoria %}<div class="muted">{{ e.categoria }}</div>{% endif %}</td>
         <td class="small">{{ e.descripcion or '—' }}</td>
         <td class="num small">{{ e.tamano|tamano }}</td>
         <td class="small nowrap">{{ e.fecha }}</td>
+        <td class="right">{{ m.delete_evidence(e, url_for('main.visita', sid=s.sesion_id, tab='evidencias')) }}</td>
       </tr>
     {% endfor %}
     </tbody>

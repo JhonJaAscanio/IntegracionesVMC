@@ -6,7 +6,7 @@ from datetime import datetime
 
 from . import schema as S
 from . import validators as V
-from .excel_store import ConflictError
+from .excel_store import ConflictError, PendingWriteError
 from .validators import ValidationError
 
 INTEGRATION_CATEGORIES = OrderedDict([
@@ -26,9 +26,10 @@ def _today():
 
 
 class Service:
-    def __init__(self, store, config):
+    def __init__(self, store, config, evidence=None):
         self.store = store
         self.config = config
+        self.evidence = evidence
 
     # ------------------------------------------------------------------
     # Lectura y enriquecimiento
@@ -88,6 +89,7 @@ class Service:
                                     if i.get("estado") and i.get("estado") != S.INCIDENCIA_CERRADA),
             })
             rec["estado_integracion"] = concepto or rec["estado_registro"]
+            rec["cliente_label"] = self.client_label(rec)
             result.append(rec)
         return result
 
@@ -164,11 +166,16 @@ class Service:
             return [("add_catalog_value", {"catalog": catalog, "value": value})]
         return []
 
-    def create_session(self, form, draft=False):
+    def create_session(self, form, draft=False, files=None):
+        """Crea la sesión y, en la misma escritura, registra los archivos adjuntos.
+
+        files: lista de (categoría, nombre de archivo, contenido, descripción).
+        """
         with self.store._lock:
             data = self.data()
             values = V.clean(form, V.SESSION_FIELDS)
-            V.validate_session(values, data.catalogos, draft)
+            V.validate_session(values, data.catalogos, draft, data.ciudades)
+            self._validate_files(files or [])
             sid = self.next_id("SES", data)
             if any(s["sesion_id"] == sid for s in data.sesiones):
                 raise ConflictError("No se pudo generar un Sesión ID único.")
@@ -176,8 +183,136 @@ class Service:
             estado = S.ESTADO_REGISTRO_BORRADOR if draft else S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
             ops.append(("create_session", {"sesion": values, "estado_registro": estado}))
-            self.store.write(ops, f"Nueva sesión {sid}")
+            if self.evidence:
+                self.evidence.ensure_session_dir(sid)
+            metas = self._store_files(sid, files or [], "Visita", sid, data)
+            ops += [("add_evidence", {"evidencia": m}) for m in metas]
+            self._write_with_files(ops, f"Nueva sesión {sid}", metas)
             return sid
+
+    # ------------------------------------------------------------------
+    # Evidencias y carpetas de visita
+    # ------------------------------------------------------------------
+    def _validate_files(self, files):
+        errors = []
+        for categoria, filename, content, _ in files:
+            try:
+                self.evidence.validate(filename, content, categoria)
+            except ValidationError as exc:
+                errors.extend(exc.errors.values())
+        if errors:
+            raise ValidationError({"archivos": " ".join(errors)},
+                                  "Revise los archivos adjuntos. Vuelva a seleccionarlos antes de guardar.")
+
+    def _store_files(self, sid, files, tipo, registro_id, data):
+        """Guarda los archivos en disco y devuelve sus metadatos con IDs consecutivos."""
+        if not files:
+            return []
+        first = int(self.next_id("EVD", data).split("-")[1])
+        metas = []
+        try:
+            for i, (categoria, filename, content, descripcion) in enumerate(files):
+                meta = self.evidence.store(sid, registro_id, filename, content, categoria)
+                meta.update({"id": f"EVD-{first + i:03d}", "sesion_id": sid, "tipo_registro": tipo,
+                             "registro_id": registro_id, "descripcion": (descripcion or "")[:500]})
+                metas.append(meta)
+        except Exception:
+            for meta in metas:
+                self.evidence.remove_file(meta["ruta"])
+            raise
+        return metas
+
+    def _write_with_files(self, ops, descripcion, metas):
+        """Escribe; si falla (salvo diferido por bloqueo) elimina los archivos recién guardados."""
+        try:
+            self.store.write(ops, descripcion)
+        except PendingWriteError:
+            raise
+        except Exception:
+            for meta in metas:
+                self.evidence.remove_file(meta["ruta"])
+            raise
+
+    def attach_files(self, sid, files, tipo="Visita", registro_id=None):
+        """Adjunta uno o varios archivos a la visita o a uno de sus registros."""
+        with self.store._lock:
+            data = self.data()
+            if not any(s["sesion_id"] == sid for s in data.sesiones):
+                raise ConflictError(f"La sesión {sid} no existe.")
+            if not files:
+                raise ValidationError({"archivos": "Seleccione al menos un archivo."},
+                                      "Seleccione al menos un archivo.")
+            self._validate_files(files)
+            registro_id = registro_id if tipo != "Visita" and registro_id else sid
+            metas = self._store_files(sid, files, tipo, registro_id, data)
+            self._write_with_files([("add_evidence", {"evidencia": m}) for m in metas],
+                                   f"{len(metas)} evidencia(s) en {sid}", metas)
+            return metas
+
+    def delete_evidence(self, sid, evidence_id):
+        """Elimina una evidencia de la visita: mueve el archivo a la papelera y quita su registro.
+
+        Si la escritura falla (salvo diferida por bloqueo), el archivo vuelve a su lugar.
+        Devuelve (registro eliminado, ruta del archivo en la papelera o None).
+        """
+        with self.store._lock:
+            data = self.data()
+            rec = next((e for e in data.evidencias if e["id"] == evidence_id), None)
+            if rec is None or rec["sesion_id"] != sid:
+                raise ConflictError("La evidencia no existe en esta visita.")
+            trash = self.evidence.move_to_trash(sid, rec["ruta"])
+            trash_rel = (trash.relative_to(self.evidence.base.parent).as_posix() if trash
+                         else "archivo no encontrado en disco")
+            try:
+                self.store.write([("delete_evidence", {"id": evidence_id, "sesion_id": sid,
+                                                       "papelera": trash_rel})],
+                                 f"Eliminación de la evidencia {evidence_id} de {sid}")
+            except PendingWriteError:
+                raise
+            except Exception:
+                self.evidence.restore_from_trash(trash, rec["ruta"])
+                raise
+            return rec, trash
+
+    def register_existing_file(self, sid, rel_path, categoria=None):
+        """Registra un archivo copiado manualmente a la carpeta de la visita."""
+        with self.store._lock:
+            data = self.data()
+            if any(e["ruta"] == rel_path for e in data.evidencias):
+                raise ConflictError("El archivo ya está registrado.")
+            meta = self.evidence.register_existing(sid, rel_path, categoria)
+            meta.update({"id": self.next_id("EVD", data), "sesion_id": sid, "tipo_registro": "Visita",
+                         "registro_id": sid, "descripcion": "Registrado desde la carpeta de la visita"})
+            self.store.write([("add_evidence", {"evidencia": meta})], f"Registro de archivo en {sid}")
+            return meta
+
+    def save_report(self, sid, filename, html):
+        """Guarda un informe HTML generado en la carpeta informes/ y lo registra."""
+        with self.store._lock:
+            data = self.data()
+            meta = self.evidence.store_generated(sid, filename, html.encode("utf-8"))
+            meta.update({"id": self.next_id("EVD", data), "sesion_id": sid, "tipo_registro": "Visita",
+                         "registro_id": sid, "descripcion": "Informe de visita generado por la plataforma"})
+            self._write_with_files([("add_evidence", {"evidencia": meta})], f"Informe de {sid}", [meta])
+            return meta
+
+    def folders(self, f=None):
+        """Resumen de la carpeta de cada visita: archivos por subcarpeta y última actividad."""
+        from .evidence import FOLDERS, folder_of
+        data = self.data()
+        sessions = self.filter_sessions(self.sessions(data), f or {})
+        by_session = defaultdict(list)
+        for e in data.evidencias:
+            by_session[e["sesion_id"]].append(e)
+        result = []
+        for s in sessions:
+            evs = by_session.get(s["sesion_id"], [])
+            counts = Counter(folder_of(e) for e in evs)
+            result.append({"sesion": s, "total": len(evs),
+                           "conteo": {k: counts.get(k, 0) for k in FOLDERS},
+                           "ultima": max((e.get("fecha", "") for e in evs), default="")})
+        result.sort(key=lambda r: (r["sesion"].get("fecha", ""), r["sesion"]["sesion_id"]), reverse=True)
+        return result
 
     def update_session(self, sid, form, draft=False):
         with self.store._lock:
@@ -186,7 +321,7 @@ class Service:
             if session is None:
                 raise ConflictError(f"La sesión {sid} no existe.")
             values = V.clean(form, V.SESSION_FIELDS)
-            V.validate_session(values, data.catalogos, draft)
+            V.validate_session(values, data.catalogos, draft, data.ciudades, current=session)
             estado = None
             if session["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR and not draft:
                 estado = S.ESTADO_REGISTRO_EN_CURSO
@@ -452,6 +587,16 @@ class Service:
             self.store.write([("save_cierre", {"sesion_id": sid, "fields": values})],
                              f"Cierre de la sesión {sid}")
 
+    @staticmethod
+    def client_label(session):
+        """Cliente y comercio en una sola línea (equivale al antiguo campo combinado)."""
+        cliente, comercio = session.get("cliente", ""), session.get("comercio", "")
+        return f"{cliente} - {comercio}" if cliente and comercio else (cliente or comercio)
+
+    def objective_templates(self):
+        """Objetivo propuesto para cada tipo de prueba (config.json → sesiones.objetivos_por_tipo)."""
+        return dict(self.config.get("sesiones", {}).get("objetivos_por_tipo", {}))
+
     def email_summary(self, sid, overrides=None):
         """Mismo texto que la fórmula 'Resumen para correo' del libro."""
         data = self.data()
@@ -465,7 +610,7 @@ class Service:
         return (
             f"Resumen de visita — Sesión {sid}\n"
             f"Fecha de la visita: {s.get('fecha', '')}\n"
-            f"Cliente / Comercio: {s.get('cliente', '')}\n"
+            f"Cliente / Comercio: {self.client_label(s)}\n"
             f"Máquina: {s.get('fabricante', '')} {s.get('modelo_maquina', '')} (Serial: {s.get('serial_maquina', '')})\n"
             f"POS: {s.get('modelo_pos', '')} (Serial: {s.get('serial_pos', '')}) — Firmware: {s.get('firmware', '')}\n"
             f"MDB: {s.get('mdb_estandar', '')} / {s.get('mdb_version', '')} / {s.get('mdb_modulo', '')}\n"
@@ -491,7 +636,7 @@ class Service:
         q = (f.get("q") or "").strip()
         for s in sessions:
             if q and not any(contains(s.get(k), q) for k in (
-                    "sesion_id", "cliente", "fabricante", "modelo_maquina", "serial_maquina",
+                    "sesion_id", "cliente", "comercio", "fabricante", "modelo_maquina", "serial_maquina",
                     "modelo_pos", "serial_pos", "firmware", "responsable", "ciudad", "pais")):
                 continue
             if f.get("cliente") and not contains(s.get("cliente"), f["cliente"]):

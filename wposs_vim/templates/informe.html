@@ -18,7 +18,7 @@
     <div>
       <p class="muted small">WPOSS · Checklist de Pruebas y Validación Técnica — Vending NEW5320</p>
       <h1>Informe de cierre · {{ s.sesion_id }}</h1>
-      <p>{{ s.cliente or '—' }} · Visita {{ s.fecha or '—' }}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
+      <p>{{ s.cliente_label or '—' }} · Visita {{ s.fecha or '—' }}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
     </div>
     <div class="report-concept">
       <span class="muted small">Concepto final</span>

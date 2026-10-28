@@ -37,14 +37,15 @@
 </div>
 {%- endmacro %}
 
-{% macro select(name, text, options, v, errors, required=False, blank='Seleccione…', help=None, wide=False) -%}
+{% macro select(name, text, options, v, errors, required=False, blank='Seleccione…', help=None, wide=False, data={}, extra=[]) -%}
 <div class="field{{ ' has-error' if errors.get(name) }}{{ ' wide' if wide }}">
   {{ label(name, text, required) }}
-  <select id="f-{{ name }}" name="{{ name }}">
+  <select id="f-{{ name }}" name="{{ name }}"{% for k, val in data.items() %} data-{{ k }}="{{ val }}"{% endfor %}>
     <option value="">{{ blank }}</option>
     {% set current = v.get(name, '') %}
     {% for o in options %}<option value="{{ o }}" {{ 'selected' if o == current }}>{{ o }}</option>{% endfor %}
-    {% if current and current not in options %}<option value="{{ current }}" selected>{{ current }} (no está en el catálogo)</option>{% endif %}
+    {% for o in extra %}<option value="{{ o }}" {{ 'selected' if o == current }}>{{ o }}</option>{% endfor %}
+    {% if current and current not in options and current not in extra %}<option value="{{ current }}" selected>{{ current }} (valor anterior)</option>{% endif %}
   </select>
   {% if help %}<p class="help">{{ help }}</p>{% endif %}
   {{ err(errors, name) }}
@@ -83,4 +84,12 @@
       {% else %}<span>{{ p }}</span>{% endif %}
     {% endif %}{% endfor %}
   {% else %}<span class="muted">—</span>{% endif %}
+{%- endmacro %}
+
+{% macro delete_evidence(e, back) -%}
+<form method="post" action="{{ url_for('main.carpeta_eliminar', sid=e.sesion_id) }}" class="inline"
+      data-confirm="Se eliminará “{{ e.archivo }}” de la visita {{ e.sesion_id }}. El archivo se moverá a la papelera de la plataforma y el cambio quedará en el historial. ¿Continuar?">
+  {{ csrf() }}<input type="hidden" name="id" value="{{ e.id }}"><input type="hidden" name="volver" value="{{ back }}"><input type="hidden" name="confirmar" value="si">
+  <button class="btn-icon btn-danger" title="Eliminar {{ e.archivo }}" aria-label="Eliminar {{ e.archivo }}"><svg class="i"><use href="#i-trash"/></svg></button>
+</form>
 {%- endmacro %}

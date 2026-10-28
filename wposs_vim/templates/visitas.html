@@ -45,7 +45,7 @@
     <tr data-href="{{ url_for('main.visita', sid=s.sesion_id) }}">
       <td class="nowrap"><a class="mono" href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a>{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</td>
       <td class="nowrap">{{ s.fecha or '—' }}</td>
-      <td><div class="truncate" title="{{ s.cliente }}">{{ s.cliente or '—' }}</div>
+      <td><div class="truncate" title="{{ s.cliente_label }}">{{ s.cliente_label or '—' }}</div>
         {% if s.pais or s.ciudad %}<div class="muted small">{{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}</div>{% endif %}</td>
       <td><div class="truncate">{{ s.fabricante or '—' }}</div>{% if s.modelo_maquina and s.modelo_maquina != s.fabricante %}<div class="muted small truncate">{{ s.modelo_maquina }}</div>{% endif %}</td>
       <td class="nowrap">{{ s.modelo_pos or '—' }}<div class="muted small mono">{{ s.firmware or '—' }}</div></td>

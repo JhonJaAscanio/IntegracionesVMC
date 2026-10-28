@@ -269,20 +269,31 @@ def save_cierre(wb, p):
 # --------------------------------------------------------------------------
 
 def add_catalog_value(wb, p):
+    """Agrega un valor a un catálogo de Listas. Los catálogos emparejados (cliente, ciudad)
+    reciben además su país en la misma fila (`pair`)."""
     key, value = p["catalog"], p["value"].strip()
+    pair = (p.get("pair") or "").strip()
     col = catalog_column(wb, key)
     if col is None:
         raise StoreError(f"El catálogo '{key}' no existe en la hoja Listas.")
+    pair_col = catalog_column(wb, S.CATALOG_PAIRS[key]) if key in S.CATALOG_PAIRS else None
+    if key in S.CATALOG_PAIRS and (pair_col is None or not pair):
+        raise StoreError(f"El catálogo '{S.CATALOG_LABELS[key]}' requiere indicar el país.")
     ws = wb[S.SHEET_LISTAS]
     last = 1
     for r in range(2, ws.max_row + 1):
         v = norm_value(ws.cell(r, col).value)
         if v:
-            if v.casefold() == value.casefold():
+            same_pair = pair_col is None or norm_value(ws.cell(r, pair_col).value).casefold() == pair.casefold()
+            if v.casefold() == value.casefold() and same_pair:
                 return  # ya existe: no se duplica
             last = r
     set_cell(ws.cell(last + 1, col), value)
-    _history(wb, "Catálogo", S.CATALOG_LABELS[key], "", "Valor agregado", {"Valor": ("", value)})
+    changes = {"Valor": ("", value)}
+    if pair_col:
+        set_cell(ws.cell(last + 1, pair_col), pair)
+        changes["País"] = ("", pair)
+    _history(wb, "Catálogo", S.CATALOG_LABELS[key], "", "Valor agregado", changes)
 
 
 _EVIDENCE_TARGET = {
@@ -320,6 +331,37 @@ def add_evidence(wb, p):
     _touch_session(wb, meta["sesion_id"])
 
 
+def delete_evidence(wb, p):
+    """Quita una evidencia del registro (decisión explícita del usuario).
+
+    Vacía su fila en App_Evidencias, retira la ruta de la columna Evidencia del registro
+    asociado y deja en el historial los datos eliminados y la ubicación en la papelera.
+    """
+    ev = sheet(wb, S.SHEET_APP_EVIDENCIAS)
+    rec = ev.find(id=p["id"])
+    if rec is None:
+        raise ConflictError(f"La evidencia {p['id']} no existe.")
+    if rec["sesion_id"] != p["sesion_id"]:
+        raise ConflictError("La evidencia pertenece a otra sesión.")
+    target = _EVIDENCE_TARGET.get(rec["tipo_registro"])
+    if target:
+        sh = sheet(wb, target[0])
+        criteria = {target[1]: rec["registro_id"]}
+        if rec["tipo_registro"] == "Revisión física":
+            criteria["sesion_id"] = rec["sesion_id"]
+        linked = sh.find(**criteria)
+        if linked is not None:
+            parts = [x.strip() for x in linked.get("evidencia", "").split(";") if x.strip()]
+            remaining = [x for x in parts if x != rec["ruta"]]
+            if remaining != parts:
+                set_cell(sh.ws.cell(linked["_row"], sh.col["evidencia"]), "; ".join(remaining))
+    snapshot = {dict(ev.columns)[k]: (v, "") for k, v in rec.items() if k in ev.col and v}
+    snapshot["Papelera"] = ("", p.get("papelera", ""))
+    ev.clear_row(rec["_row"])
+    _history(wb, "Evidencia", rec["id"], rec["sesion_id"], "Archivo eliminado", snapshot)
+    _touch_session(wb, rec["sesion_id"])
+
+
 def delete_example(wb, p):
     """Vacía una fila marcada como ejemplo (decisión explícita del usuario)."""
     tipo, rid = p["tipo"], p["id"]
@@ -354,6 +396,7 @@ class Operations:
         "save_cierre": save_cierre,
         "add_catalog_value": add_catalog_value,
         "add_evidence": add_evidence,
+        "delete_evidence": delete_evidence,
         "delete_example": delete_example,
         "set_session_state": set_session_state,
     }

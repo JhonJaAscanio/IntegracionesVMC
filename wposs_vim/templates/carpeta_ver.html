@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ e.archivo }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ url_for('main.carpeta', sid=e.sesion_id, sub=sub) }}"><svg class="i"><use href="#i-back"/></svg>Carpeta {{ e.sesion_id }}</a>
+    <h1 class="mono">{{ e.archivo }}</h1>
+    <p class="muted">{{ e.categoria or 'Archivo' }} · {{ e.tamano|tamano }} · {{ e.fecha }}{% if e.descripcion %} · {{ e.descripcion }}{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" download><svg class="i"><use href="#i-download"/></svg>Descargar</a>
+  </div>
+</div>
+{% if e.advertencia %}<div class="note note-warn">{{ e.advertencia }}</div>{% endif %}
+{% if truncated %}<p class="note small">Se muestran los primeros 512 KB. Descargue el archivo para verlo completo.</p>{% endif %}
+<pre class="log log-view">{{ content }}</pre>
+{% endblock %}

@@ -1,10 +1,42 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
-{% block title %}Reportes{% endblock %}
+{% block title %}Informes y reportes{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><h1>Reportes</h1><p class="muted">Exportación, comparación de sesiones y consultas por equipo.</p></div>
+  <div><h1>Informes y reportes</h1><p class="muted">Informe completo por visita, exportación, comparación de sesiones y consultas por equipo.</p></div>
 </div>
+
+<section class="panel">
+  <div class="panel-head"><h2>Informes de visita</h2><span class="muted small">Se guardan en la carpeta informes/ de cada visita</span></div>
+  <p class="muted small">El informe reúne toda la información de la visita: identificación, equipos y versiones, revisión física, casos de prueba, incidencias con su historial, cierre, resumen para correo y las fotos y archivos de la carpeta.</p>
+  {% if sessions %}
+  <form method="post" class="inline-form" action="{{ url_for('main.reportes_informe') }}">
+    {{ m.csrf() }}
+    <select name="sid" aria-label="Visita" required>
+      {% for s in sessions|sort(attribute='fecha', reverse=True) %}<option value="{{ s.sesion_id }}">{{ s.sesion_id }} · {{ s.fecha }} · {{ s.cliente_label|truncate(40) }}</option>{% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm"><svg class="i"><use href="#i-file"/></svg>Generar informe</button>
+  </form>
+  {% endif %}
+  {% if informes %}
+  <div class="table-wrap mt">
+  <table class="table">
+    <thead><tr><th>Informe</th><th>Visita</th><th>Generado</th><th class="num">Tamaño</th><th></th></tr></thead>
+    <tbody>
+    {% for e in informes %}
+      <tr>
+        <td><a class="file-link" href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-file"/></svg>{{ e.archivo }}</a></td>
+        <td class="mono"><a href="{{ url_for('main.carpeta', sid=e.sesion_id, sub='informes') }}">{{ e.sesion_id }}</a></td>
+        <td class="small nowrap">{{ e.fecha }}</td>
+        <td class="num small">{{ e.tamano|tamano }}</td>
+        <td class="right"><a class="btn btn-sm" href="{{ url_for('main.carpeta_zip', sid=e.sesion_id) }}" title="Carpeta completa con informe y datos">.zip</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="muted small mt">Aún no se han generado informes.</p>{% endif %}
+</section>
 
 <div class="grid-2 align-start">
   <section class="panel">
@@ -54,7 +86,7 @@
       {% for s in sessions|sort(attribute='fecha', reverse=True) %}
         <tr>
           <td><input type="checkbox" name="s" value="{{ s.sesion_id }}" aria-label="Comparar {{ s.sesion_id }}" data-compare></td>
-          <td class="mono">{{ s.sesion_id }}</td><td>{{ s.fecha }}</td><td class="truncate">{{ s.cliente }}</td>
+          <td class="mono">{{ s.sesion_id }}</td><td>{{ s.fecha }}</td><td class="truncate">{{ s.cliente_label }}</td>
           <td>{{ s.fabricante }} {{ s.modelo_maquina }}</td><td class="mono">{{ s.firmware }}</td><td>{{ m.badge(s.estado_integracion) }}</td>
         </tr>
       {% endfor %}

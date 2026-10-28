@@ -47,10 +47,24 @@
       <input name="valor" placeholder="Nuevo valor" maxlength="200" required aria-label="Nuevo valor">
       <button class="btn btn-sm">Agregar</button>
     </form>
+    <form method="post" action="{{ url_for('main.catalogo_agregar') }}" class="inline-form">
+      {{ m.csrf() }}
+      <select name="catalogo" aria-label="Tipo">{% for key in paired %}<option value="{{ key }}">{{ 'Cliente' if key == 'cliente' else 'Ciudad' }}</option>{% endfor %}</select>
+      <input name="valor" placeholder="Nombre" maxlength="200" required aria-label="Nombre del cliente o de la ciudad">
+      <select name="pais" aria-label="País" required><option value="">País…</option>{% for p in cat.pais %}<option>{{ p }}</option>{% endfor %}</select>
+      <button class="btn btn-sm">Agregar con país</button>
+    </form>
     <div class="catalogs">
-      {% for key, label in S.CATALOGS %}
+      {% for key, label in S.CATALOGS if key not in S.CATALOGS_HIDDEN %}
       <details class="more"><summary>{{ label }} <span class="count">{{ cat[key]|length }}</span></summary>
-        <ul class="chips">{% for v in cat[key] %}<li>{{ v }}</li>{% endfor %}</ul></details>
+        {% if key == 'cliente' %}
+          <ul class="chips">{% for v in cat[key] %}<li>{{ v }} <span class="muted">· {{ clientes_pais.get(v, '—') }}</span></li>{% endfor %}</ul>
+        {% elif key == 'ciudad' %}
+          {% for pais, lista in ciudades.items() %}<p class="small muted">{{ pais }}</p><ul class="chips">{% for v in lista %}<li>{{ v }}</li>{% endfor %}</ul>{% endfor %}
+        {% else %}
+          <ul class="chips">{% for v in cat[key] %}<li>{{ v }}</li>{% endfor %}</ul>
+        {% endif %}
+      </details>
       {% endfor %}
     </div>
   </section>

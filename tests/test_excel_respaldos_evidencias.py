@@ -36,7 +36,11 @@ def test_11_hojas_y_formulas_originales_conservadas(app):
         for coord, value in before[name].items():
             if name == S.SHEET_CIERRE and coord in ("A5", "B5", "Z5", "AA5", "AB5", "AC5"):
                 continue  # fila 5 preparada que recibió el nuevo cierre
+            if name == S.SHEET_LISTAS and coord[0] == "E" and coord != "E1":
+                continue  # tipos de prueba reemplazados por definición de WPOSS (se verifica abajo)
             assert after[name].get(coord) == value, (name, coord)
+    tipos = [after[S.SHEET_LISTAS].get(f"E{r}") for r in range(2, 2 + len(S.TIPOS_PRUEBA))]
+    assert tipos == S.TIPOS_PRUEBA and "E6" not in after[S.SHEET_LISTAS]
     # Fórmulas del cierre presentes en todas las filas preparadas.
     wb = load_workbook(work)
     ws = wb[S.SHEET_CIERRE]
@@ -68,7 +72,7 @@ def test_12_excel_bloqueado_conserva_cambios_pendientes(app):
     assert service(app).next_id("SES") == "SES-005"
     lock.unlink()
     assert store.retry_pending() == 1
-    assert service(app).get_session("SES-004")["cliente"] == "Cliente Piloto QA"
+    assert service(app).get_session("SES-004")["comercio"] == "Comercio Piloto QA"
     assert store.pending() == []
 
 
@@ -145,19 +149,20 @@ def test_14_validacion_de_adjuntos(app):
     _upload(c, sid, "malware.exe", b"MZ...")
     # Vacío.
     _upload(c, sid, "vacio.txt", b"")
-    assert not folder.exists() or not any(folder.iterdir())
+    assert not [p for p in folder.rglob("*") if p.is_file()]
     # Nombre manipulado: se normaliza dentro de la carpeta de la sesión.
     _upload(c, sid, "../../config.json", b'{"a": 1}', "Prueba", tid)
     _upload(c, sid, "foto conexión.jpg", b"\xff\xd8\xff data")
     _upload(c, sid, "foto conexión.jpg", b"\xff\xd8\xff other")
-    files = sorted(p.name for p in folder.iterdir())
-    assert f"{tid}_config.json" in files
-    assert "foto_conexion.jpg" in files and "foto_conexion-1.jpg" in files  # sin sobrescritura
+    files = sorted(p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file())
+    assert f"logs/{tid}_config.json" in files
+    # Sin sobrescritura: el segundo archivo con el mismo nombre recibe un sufijo.
+    assert "fotos/maquina_foto_conexion.jpg" in files and "fotos/maquina_foto_conexion-1.jpg" in files
     data = svc.data()
     evs = [e for e in data.evidencias if e["sesion_id"] == sid]
     assert len(evs) == 3 and all(e["ruta"].startswith(f"evidencias/{sid}/") for e in evs)
     test = next(t for t in data.pruebas if t["id"] == tid)
-    assert test["evidencia"] == f"evidencias/{sid}/{tid}_config.json"
+    assert test["evidencia"] == f"evidencias/{sid}/logs/{tid}_config.json"
     # Recuperable por la ruta registrada.
     assert c.get(f"/archivo/evidencias/{sid}/no_registrado.jpg").status_code == 404
     r = c.get(f"/archivo/{evs[1]['ruta']}")

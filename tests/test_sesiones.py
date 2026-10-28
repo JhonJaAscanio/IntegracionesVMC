@@ -32,8 +32,8 @@ def test_02_crear_sesion(client, app):
     assert r.status_code == 302
     assert r.headers["Location"].endswith("/visitas/SES-004")
     s = service(app).get_session("SES-004")
-    assert s["cliente"] == "Cliente Piloto QA"
-    assert s["pais"] == "Colombia" and s["ciudad"] == "Bogotá"
+    assert s["cliente"] == "DATAFAST" and s["comercio"] == "Comercio Piloto QA"
+    assert s["pais"] == "Ecuador" and s["ciudad"] == "Quito"
     assert s["estado_registro"] == S.ESTADO_REGISTRO_EN_CURSO
     assert client.get("/visitas/SES-004").status_code == 200
 
@@ -61,16 +61,16 @@ def test_03b_crear_con_id_existente_no_sobrescribe(app):
 
 def test_04_editar_sesion_con_historial(client, app):
     sid = service(app).create_session(SESSION_FORM)
-    r = client.post(f"/visitas/{sid}/editar", {**SESSION_FORM, "firmware": "13.0.31", "accion": "guardar"})
+    r = client.post(f"/visitas/{sid}/editar", {**SESSION_FORM, "firmware": "13.0.17", "accion": "guardar"})
     assert r.status_code == 302
     s = service(app).get_session(sid)
-    assert s["firmware"] == "13.0.31"
+    assert s["firmware"] == "13.0.17"
     hist = [h for h in service(app).data().historial if h["registro_id"] == sid and h["campo"] == "Firmware NEW5320"]
-    assert hist and hist[-1]["anterior"] == "13.0.30" and hist[-1]["nuevo"] == "13.0.31"
+    assert hist and hist[-1]["anterior"] == "13.0.22" and hist[-1]["nuevo"] == "13.0.17"
 
 
 def test_04b_borrador_y_continuar(client, app):
-    r = client.post("/visitas/nueva", {"cliente": "Solo cliente", "accion": "borrador"})
+    r = client.post("/visitas/nueva", {"comercio": "Solo comercio", "accion": "borrador"})
     assert r.status_code == 302
     sid = r.headers["Location"].rsplit("/", 1)[-1]
     assert service(app).get_session(sid)["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR
@@ -103,7 +103,7 @@ def test_15_datos_incompletos_conservan_formulario(client, app):
     assert "Campo obligatorio." in html
     assert "Use el formato AAAA-MM-DD." in html
     assert 'value="Validar MDB"' not in html  # objetivo es textarea
-    assert "Validar MDB" in html and 'value="13.0.30"' in html  # datos conservados
+    assert "Validar MDB" in html and '<option value="13.0.22" selected>' in html  # datos conservados
     assert len(service(app).data().sesiones) == before
 
 

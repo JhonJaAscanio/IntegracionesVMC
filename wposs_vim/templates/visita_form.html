@@ -10,13 +10,14 @@
   </div>
 </div>
 
-<form method="post" class="form" data-stepper novalidate>
+<form method="post" class="form" data-stepper novalidate{% if not sid %} enctype="multipart/form-data"{% endif %}>
   {{ m.csrf() }}
   <ol class="steps" data-steps>
     <li><button type="button" data-step-to="0"><span>1</span>Visita</button></li>
     <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
     <li><button type="button" data-step-to="2"><span>3</span>Software</button></li>
     <li><button type="button" data-step-to="3"><span>4</span>Instalación y notas</button></li>
+    {% if not sid %}<li><button type="button" data-step-to="4"><span>5</span>Evidencias</button></li>{% endif %}
   </ol>
 
   <section class="form-section" data-step>
@@ -25,12 +26,13 @@
       {{ m.input('fecha', 'Fecha', v, errors, type='date', required=True) }}
       {{ m.input('hora', 'Hora', v, errors, type='time') }}
       {{ m.input('responsable', 'Responsable', v, errors, required=True) }}
-      {{ m.input('cliente', 'Cliente / Piloto', v, errors, required=True, pc=True) }}
-      {{ m.select('pais', 'País', cat.pais, v, errors, help='Catálogo ampliable en Configuración.') }}
-      {{ m.input('ciudad', 'Ciudad', v, errors) }}
-      {{ m.select('tipo_prueba', 'Tipo de prueba', cat.tipo_prueba, v, errors, required=True) }}
+      {{ m.select('cliente', 'Cliente', cat.cliente, v, errors, required=True, data={'country-map': clientes_pais_json, 'country-target': 'f-pais'}) }}
+      {{ m.input('comercio', 'Comercio / punto de venta', v, errors, placeholder='Ej.: nombre del comercio o ubicación de la máquina') }}
+      {{ m.select('pais', 'País', cat.pais, v, errors, help='Se completa al elegir el cliente.', data={'city-map': ciudades_json, 'city-target': 'f-ciudad'}) }}
+      {{ m.select('ciudad', 'Ciudad', ciudades.get(v.get('pais', ''), []), v, errors, blank='Seleccione el país primero' if not v.get('pais') else 'Seleccione…') }}
+      {{ m.select('tipo_prueba', 'Tipo de prueba', cat.tipo_prueba, v, errors, required=True, help='Al elegirlo se propone el objetivo de la sesión.', data={'objective-map': objetivos_json, 'objective-target': 'f-objetivo'}) }}
       {{ m.textarea('participantes', 'Participantes', v, errors, rows=2, help='Equipo WPOSS, cliente, técnico de la máquina…') }}
-      {{ m.textarea('objetivo', 'Objetivo de la sesión', v, errors, required=True, rows=2) }}
+      {{ m.textarea('objetivo', 'Objetivo de la sesión', v, errors, required=True, rows=4, help='Texto propuesto según el tipo de prueba; puede ajustarlo. Aparece en el informe de la visita.') }}
     </div>
   </section>
 
@@ -49,7 +51,7 @@
       <div class="form-grid">
         {{ m.input('modelo_pos', 'Modelo', v, errors, required=True) }}
         {{ m.input('serial_pos', 'Serial', v, errors, pc=True) }}
-        {{ m.input('firmware', 'Firmware NEW5320', v, errors, required=True, pc=True, help='Versión exacta instalada en el POS.') }}
+        {{ m.select('firmware', 'Firmware NEW5320', cat.firmware, v, errors, required=True, extra=[S.PENDIENTE_CONFIRMAR], help='Versión exacta instalada en el POS NEW5320.') }}
       </div>
     </fieldset>
     <datalist id="dl-fabricantes">{% for o in cat.fabricante %}<option value="{{ o }}">{% endfor %}</datalist>
@@ -79,6 +81,25 @@
       {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=3) }}
     </div>
   </section>
+
+  {% if not sid %}
+  <section class="form-section" data-step>
+    <h2>Evidencias de la visita</h2>
+    <p class="muted small">Los archivos se guardan en la carpeta de la visita, separados en fotos, logs y documentos. Puede seleccionar varios archivos en cada campo, agregar más en varias selecciones y quitar con “Quitar” los que no correspondan antes de guardar. Todos son opcionales y también se pueden agregar después desde “Carpetas de visitas”.</p>
+    {% if errors.get('archivos') %}<div class="note note-warn">{{ errors['archivos'] }} Por seguridad el navegador no conserva los archivos: selecciónelos de nuevo.</div>{% endif %}
+    <div class="form-grid upload-grid">
+      {% for field, categoria, label, accept in upload_fields %}
+      <div class="field upload-field">
+        <label for="f-{{ field }}">{{ label }}</label>
+        <input id="f-{{ field }}" type="file" name="{{ field }}" multiple {% if accept %}accept="{{ accept }}"{% endif %} data-file-count>
+        <p class="help" data-file-summary></p>
+      </div>
+      {% endfor %}
+      {{ m.input('descripcion_evidencias', 'Descripción de las evidencias', v, errors, placeholder='Ej.: fotos de placa y etiquetas, log del sniffer durante la venta', wide=True) }}
+    </div>
+    <p class="note small">No adjunte credenciales, claves ni datos completos de tarjetas. Revise y redacte los logs de transacciones antes de guardarlos.</p>
+  </section>
+  {% endif %}
 
   <div class="form-actions sticky">
     <div class="step-nav">

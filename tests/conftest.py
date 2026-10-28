@@ -77,10 +77,10 @@ def service(app):
 
 SESSION_FORM = {
     "fecha": "2026-10-27", "hora": "09:15", "responsable": "Técnico Prueba",
-    "participantes": "Equipo WPOSS", "cliente": "Cliente Piloto QA", "pais": "Colombia",
-    "ciudad": "Bogotá", "tipo_prueba": "Compatibilidad", "objetivo": "Validar MDB",
+    "participantes": "Equipo WPOSS", "cliente": "DATAFAST", "comercio": "Comercio Piloto QA", "pais": "Ecuador",
+    "ciudad": "Quito", "tipo_prueba": "Nueva Integración", "objetivo": "Validar MDB",
     "fabricante": "Fabricante QA", "modelo_maquina": "Modelo QA-1", "serial_maquina": "SM-001",
-    "modelo_pos": "NEW5320", "serial_pos": "POS-SERIAL-1", "firmware": "13.0.30",
+    "modelo_pos": "NEW5320", "serial_pos": "POS-SERIAL-1", "firmware": "13.0.22",
     "mdb_estandar": "MDB 4.2", "mdb_version": "1.0", "mdb_modulo": "mdb_mod",
     "version_financiera": "FIN 2.0", "version_polaris": "AGP 1.1",
 }

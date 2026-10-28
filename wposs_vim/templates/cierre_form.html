@@ -7,7 +7,7 @@
   <div>
     <a class="back" href="{{ url_for('main.visita', sid=s.sesion_id) }}"><svg class="i"><use href="#i-back"/></svg>{{ s.sesion_id }}</a>
     <h1>Cierre de sesión {{ m.badge(current.concepto if current else '') if current and current.concepto }}</h1>
-    <p class="muted">{{ s.cliente or '—' }} · {{ s.fabricante }} {{ s.modelo_maquina }} · POS {{ s.modelo_pos }} · FW {{ s.firmware or '—' }}</p>
+    <p class="muted">{{ s.cliente_label or '—' }} · {{ s.fabricante }} {{ s.modelo_maquina }} · POS {{ s.modelo_pos }} · FW {{ s.firmware or '—' }}</p>
   </div>
   <div class="actions">
     <a class="btn" href="{{ url_for('main.informe', sid=s.sesion_id) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-print"/></svg>Informe PDF</a>

@@ -30,14 +30,15 @@ def create_app(base_dir=None, config_overrides=None, testing=False):
     app = Flask(__name__)
     app.config.update(
         SECRET_KEY=load_secret_key(paths.datos / ".secret_key"),
-        MAX_CONTENT_LENGTH=(int(config["evidencias"]["tamano_maximo_mb"]) + 1) * 1024 * 1024,
+        # Límite por solicitud (varios archivos); el límite por archivo lo aplica EvidenceManager.
+        MAX_CONTENT_LENGTH=int(config["evidencias"]["tamano_maximo_solicitud_mb"]) * 1024 * 1024,
         TESTING=testing,
         JSON_AS_ASCII=False,
     )
+    evidence = EvidenceManager(paths.evidencias, config, paths.papelera)
     app.extensions["wposs"] = {
-        "config": config, "paths": paths, "store": store, "service": Service(store, config),
-        "evidence": EvidenceManager(paths.evidencias, config), "backups": backups,
-        "base_dir": base_dir,
+        "config": config, "paths": paths, "store": store, "service": Service(store, config, evidence),
+        "evidence": evidence, "backups": backups, "base_dir": base_dir,
     }
     install(app, config["servidor"]["puerto"])
 

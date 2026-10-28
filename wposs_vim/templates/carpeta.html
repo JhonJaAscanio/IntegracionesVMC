@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set s = b.sesion %}
+{% block title %}Carpeta {{ s.sesion_id }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ url_for('main.carpetas') }}"><svg class="i"><use href="#i-back"/></svg>Carpetas de visitas</a>
+    <h1><svg class="i h1-icon"><use href="#i-folder"/></svg><span class="mono">{{ s.sesion_id }}</span> {{ m.badge(s.estado_integracion) }}</h1>
+    <p class="muted">{{ s.cliente_label or 'Cliente sin registrar' }} · {{ s.fecha or 'sin fecha' }} · <span class="mono small folder-path">{{ folder_path }}</span></p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('main.visita', sid=s.sesion_id) }}"><svg class="i"><use href="#i-edit"/></svg>Ficha</a>
+    {% if can_open %}
+    <form method="post" action="{{ url_for('main.carpeta_abrir', sid=s.sesion_id) }}" class="inline">{{ m.csrf() }}<button class="btn" title="Abrir la carpeta en el Explorador de Windows"><svg class="i"><use href="#i-folder"/></svg>Abrir en Explorador</button></form>
+    {% endif %}
+    <a class="btn" href="{{ url_for('main.carpeta_zip', sid=s.sesion_id) }}"><svg class="i"><use href="#i-download"/></svg>Descargar .zip</a>
+    <form method="post" action="{{ url_for('main.carpeta_informe', sid=s.sesion_id) }}" class="inline">{{ m.csrf() }}<button class="btn btn-primary"><svg class="i"><use href="#i-file"/></svg>Generar informe</button></form>
+  </div>
+</div>
+
+<nav class="tabs">
+  <a href="{{ url_for('main.carpeta', sid=s.sesion_id) }}" class="{{ 'active' if vista == 'archivos' }}">Archivos<span class="count">{{ b.evidencias|length }}</span></a>
+  <a href="{{ url_for('main.carpeta', sid=s.sesion_id, vista='expediente') }}" class="{{ 'active' if vista == 'expediente' }}">Datos de la visita</a>
+</nav>
+
+{% if vista == 'expediente' %}
+<div class="panel expediente">
+  {% include "_expediente.html" %}
+</div>
+{% else %}
+
+<div class="folder-layout">
+  <nav class="subfolders" aria-label="Subcarpetas">
+    <a href="{{ url_for('main.carpeta', sid=s.sesion_id) }}" class="{{ 'active' if not sub }}"><svg class="i"><use href="#i-folder"/></svg>Todas<span class="count">{{ b.evidencias|length }}</span></a>
+    {% for key, label in folder_labels.items() %}
+    <a href="{{ url_for('main.carpeta', sid=s.sesion_id, sub=key) }}" class="{{ 'active' if sub == key }}"><svg class="i"><use href="#i-folder"/></svg>{{ label }}<span class="count">{{ groups[key]|length }}</span></a>
+      {% if key == 'logs' %}
+        {% for skey, slabel in log_subfolders.items() %}
+        <a href="{{ url_for('main.carpeta', sid=s.sesion_id, sub=skey) }}" class="nested {{ 'active' if sub == skey }}"><svg class="i"><use href="#i-folder"/></svg><span class="nested-parent">Logs / </span>{{ slabel }}<span class="count">{{ log_counts[skey] }}</span></a>
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+  </nav>
+
+  <div class="folder-main">
+    {% set photos = shown|selectattr('tipo_archivo', 'in', image_exts)|list %}
+    {% set others = shown|rejectattr('tipo_archivo', 'in', image_exts)|list %}
+
+    {% if photos %}
+    <section class="panel">
+      <div class="panel-head"><h2>Fotos</h2><span class="muted small">{{ photos|length }}</span></div>
+      <div class="gallery">
+        {% for e in photos %}
+        <figure>
+          <a href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" target="_blank" rel="noopener"><img src="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" alt="{{ e.categoria }}: {{ e.archivo }}" loading="lazy"></a>
+          <figcaption><span class="fig-row"><span class="tag">{{ e.categoria or 'Foto' }}</span>{{ m.delete_evidence(e, request.full_path) }}</span> <span class="small">{{ e.descripcion or e.archivo }}</span></figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if others %}
+    <section class="panel">
+      <div class="panel-head"><h2>Archivos</h2><span class="muted small">{{ others|length }}</span></div>
+      <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Archivo</th><th>Carpeta</th><th>Categoría</th><th>Asociado a</th><th class="num">Tamaño</th><th>Fecha</th><th></th></tr></thead>
+        <tbody>
+        {% for e in others %}
+          <tr>
+            <td><a class="file-link" href="{{ url_for('main.evidencia_ver', ruta=e.ruta) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-file"/></svg>{{ e.archivo }}</a>
+              {% if e.descripcion %}<div class="muted small">{{ e.descripcion }}</div>{% endif %}
+              {% if e.advertencia %}<div class="field-error small">{{ e.advertencia }}</div>{% endif %}</td>
+            <td class="small mono nowrap">{{ e.subcarpeta }}/</td>
+            <td class="small">{{ e.categoria or '—' }}</td>
+            <td class="small">{{ e.tipo_registro }} <span class="mono">{{ e.registro_id }}</span></td>
+            <td class="num small">{{ e.tamano|tamano }}</td>
+            <td class="small nowrap">{{ e.fecha }}</td>
+            <td class="right nowrap">{% if e.tipo_archivo in text_exts %}<a class="btn btn-sm" href="{{ url_for('main.carpeta_ver', sid=s.sesion_id, ruta=e.ruta) }}">Ver</a>{% endif %}
+              {{ m.delete_evidence(e, request.full_path) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if not shown %}
+      {{ m.empty('Carpeta vacía', 'Adjunte fotos, logs o documentos con el formulario de abajo.' if sub != 'informes' else 'Use “Generar informe” para crear el informe completo de la visita.') }}
+    {% endif %}
+
+    {% if unregistered %}
+    <section class="panel">
+      <div class="panel-head"><h2>Archivos copiados manualmente</h2><span class="muted small">Están en la carpeta pero no en el libro</span></div>
+      <ul class="unregistered">
+        {% for u in unregistered %}
+        <li>
+          <span><svg class="i"><use href="#i-file"/></svg>{{ u.carpeta ~ '/' if u.carpeta }}{{ u.archivo }} <span class="muted small">{{ u.tamano|tamano }}</span></span>
+          <form method="post" action="{{ url_for('main.carpeta_registrar', sid=s.sesion_id) }}" class="inline-form compact">
+            {{ m.csrf() }}<input type="hidden" name="ruta" value="{{ u.ruta }}">
+            <select name="categoria" aria-label="Categoría">{% for c in categories %}<option {{ 'selected' if c == u.sugerida }}>{{ c }}</option>{% endfor %}</select>
+            <button class="btn btn-sm">Registrar</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-head"><h2>Agregar archivos</h2></div>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('main.evidencia_subir', sid=s.sesion_id) }}" class="form">
+        {{ m.csrf() }}
+        <input type="hidden" name="volver" value="{{ request.full_path }}">
+        <input type="hidden" name="tipo_registro" value="Visita">
+        <div class="form-grid">
+          <div class="field"><label for="cf-cat">Categoría</label>
+            <select id="cf-cat" name="categoria">{% for c in categories %}<option {{ 'selected' if c == default_category }}>{{ c }}</option>{% endfor %}</select></div>
+          <div class="field"><label for="cf-files">Archivos</label><input id="cf-files" type="file" name="archivo" multiple required></div>
+          <div class="field wide"><label for="cf-desc">Descripción</label><input id="cf-desc" name="descripcion" maxlength="500" placeholder="Etiqueta de la máquina, log del sniffer MDB…"></div>
+        </div>
+        <p class="note small">No adjunte credenciales, claves ni datos completos de tarjetas. Revise y redacte los logs de transacciones antes de guardarlos.</p>
+        <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary"><svg class="i"><use href="#i-upload"/></svg>Agregar a la carpeta</button></div>
+      </form>
+    </section>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
