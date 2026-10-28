@@ -15,7 +15,7 @@
   <ol class="steps" data-steps>
     <li><button type="button" data-step-to="0"><span>1</span>Visita</button></li>
     <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
-    <li><button type="button" data-step-to="2"><span>3</span>Versiones</button></li>
+    <li><button type="button" data-step-to="2"><span>3</span>Software</button></li>
     <li><button type="button" data-step-to="3"><span>4</span>Instalación y notas</button></li>
   </ol>
 
@@ -35,22 +35,30 @@
   </section>
 
   <section class="form-section" data-step>
-    <h2>Máquina y POS</h2>
-    <div class="form-grid">
-      {{ m.input('fabricante', 'Fabricante máquina', v, errors, required=True, list='dl-fabricantes', pc=True, help='Si es un fabricante nuevo se agrega al catálogo.') }}
-      {{ m.input('modelo_maquina', 'Modelo máquina', v, errors, required=True, pc=True) }}
-      {{ m.input('serial_maquina', 'Serial máquina', v, errors, pc=True) }}
-      {{ m.input('modelo_pos', 'Modelo POS', v, errors, required=True) }}
-      {{ m.input('serial_pos', 'Serial POS', v, errors, pc=True) }}
-    </div>
+    <h2>Equipos</h2>
+    <fieldset class="subsection">
+      <legend>Máquina vending</legend>
+      <div class="form-grid">
+        {{ m.input('fabricante', 'Fabricante', v, errors, required=True, list='dl-fabricantes', pc=True, help='Si es un fabricante nuevo se agrega al catálogo.') }}
+        {{ m.input('modelo_maquina', 'Modelo', v, errors, required=True, pc=True) }}
+        {{ m.input('serial_maquina', 'Serial', v, errors, pc=True) }}
+      </div>
+    </fieldset>
+    <fieldset class="subsection">
+      <legend>POS</legend>
+      <div class="form-grid">
+        {{ m.input('modelo_pos', 'Modelo', v, errors, required=True) }}
+        {{ m.input('serial_pos', 'Serial', v, errors, pc=True) }}
+        {{ m.input('firmware', 'Firmware NEW5320', v, errors, required=True, pc=True, help='Versión exacta instalada en el POS.') }}
+      </div>
+    </fieldset>
     <datalist id="dl-fabricantes">{% for o in cat.fabricante %}<option value="{{ o }}">{% endfor %}</datalist>
   </section>
 
   <section class="form-section" data-step>
-    <h2>Versiones</h2>
+    <h2>Versiones de software</h2>
     <p class="muted small">Registre las versiones exactas. Si un dato no se conoce, use “Pendiente” e indique en Observaciones quién debe confirmarlo.</p>
     <div class="form-grid">
-      {{ m.input('firmware', 'Firmware NEW5320', v, errors, required=True, pc=True) }}
       {{ m.input('mdb_estandar', 'MDB — Estándar / Especificación', v, errors, pc=True) }}
       {{ m.input('mdb_version', 'MDB — Versión de implementación', v, errors, pc=True) }}
       {{ m.input('mdb_modulo', 'MDB — Módulo de software', v, errors, pc=True) }}
