@@ -5,7 +5,9 @@ Este archivo proporciona orientación a Claude Code (claude.ai/code) al trabajar
 ## Comandos
 
 ```bash
-iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app
+abrir_plataforma.bat                # Windows: crea .venv si falta, inicia el servidor minimizado si no responde y abre el navegador
+abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para pruebas)
+iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
 python -m pytest                    # Todas las pruebas (~100 s; 38 pruebas)
@@ -132,6 +134,7 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 - Todo formulario POST incluye `{{ m.csrf() }}`. Las plantillas importan macros con `{% import "_macros.html" as m with context %}` (sin `with context` no ven `csrf_token` ni `request`).
 - Flask corre sin modo debug: tras cambiar plantillas o estáticos hay que **reiniciar el servidor**.
 - El servidor solo escucha en `127.0.0.1`; `security.install` rechaza IP y cabecera Host no locales.
+- Scripts `.bat`: guardar con fin de línea CRLF y solo caracteres ASCII. Para esperas no usar `ping 127.0.0.1` (en este equipo el ICMP local tarda ~14 s y falla); la espera de arranque la hace `curl.exe --retry-connrefused`.
 
 ## Reglas de desarrollo
 

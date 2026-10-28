@@ -19,10 +19,19 @@ en la nube y sin necesidad de tener Excel instalado.
 > clonar, copie `WPOSS_Checklist_Pruebas_Vending_5320.xlsx` en la carpeta raíz del proyecto
 > (junto a `app.py`). Sin ese archivo la aplicación no inicia.
 
-1. Haga doble clic en **`iniciar.bat`**.
+**Forma recomendada: `abrir_plataforma.bat`**
+
+1. Haga doble clic en **`abrir_plataforma.bat`** (puede crear un acceso directo en el escritorio).
 2. La primera vez se crea el entorno `.venv` y se instalan las dependencias (1–2 minutos).
-3. Se abre el navegador en **http://127.0.0.1:5000**. Si no se abre, escriba esa dirección.
-4. Para detener la aplicación, cierre la ventana negra.
+3. El servidor se inicia en una ventana minimizada llamada *"WPOSS servidor"* y, cuando
+   responde, se abre el navegador en **http://127.0.0.1:5000**.
+4. Si la plataforma ya estaba en ejecución, solo abre el navegador (no inicia un segundo servidor).
+5. Para detener la plataforma, cierre la ventana minimizada *"WPOSS servidor"*.
+
+El puerto se toma de `config.json` → `servidor.puerto`.
+
+**Alternativa: `iniciar.bat`** inicia el servidor en la ventana visible y abre el navegador;
+para detenerlo, cierre esa ventana.
 
 Desde una terminal también puede ejecutarse con:
 
@@ -38,7 +47,8 @@ La aplicación escucha solo en `127.0.0.1`: no es accesible desde otros equipos 
 Integraciones VMC/
 ├── WPOSS_Checklist_Pruebas_Vending_5320.xlsx   Libro original (NUNCA se modifica; no versionado)
 ├── app.py                 Punto de entrada
-├── iniciar.bat            Inicio en Windows
+├── abrir_plataforma.bat   Inicia el servidor minimizado (si no está activo) y abre el navegador
+├── iniciar.bat            Inicio en Windows con la consola visible
 ├── config.json            Configuración local (se crea en el primer inicio)
 ├── requirements.txt
 ├── wposs_vim/             Código de la aplicación
