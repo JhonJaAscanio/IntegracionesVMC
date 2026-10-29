@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Checklists{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Checklists de integración</h1>
+    <p class="muted">Pasos que se muestran al registrar una visita según su tipo de prueba. Los cambios aplican a las visitas nuevas; las visitas ya registradas conservan sus pasos.</p>
+  </div>
+</div>
+
+<nav class="tabs">
+  {% for t in tipos %}
+  <a href="{{ url_for('main.checklists', tipo=t) }}" class="{{ 'active' if t == tipo }}">{{ t }}<span class="count">{{ counts[t] }}</span></a>
+  {% endfor %}
+</nav>
+
+<div class="grid-2 align-start checklist-admin">
+  <div>
+    {% if sections %}
+      {% for seccion, items in sections %}
+      <section class="panel">
+        <div class="panel-head"><h2>{{ seccion }}</h2><span class="muted small">{{ items|length }} paso(s)</span></div>
+        <ol class="chk-admin-list">
+          {% for it in items %}
+          <li>
+            <div class="chk-admin-row">
+              <span class="chk-num">{{ loop.index }}</span>
+              <span class="chk-admin-text">{{ it.texto }}</span>
+              <span class="chk-admin-actions">
+                <form method="post" action="{{ url_for('main.checklist_item_mover', item_id=it.id) }}" class="inline">
+                  {{ m.csrf() }}<input type="hidden" name="tipo_actual" value="{{ tipo }}"><input type="hidden" name="direccion" value="subir">
+                  <button class="btn-icon" title="Subir" aria-label="Subir paso {{ loop.index }}" {{ 'disabled' if loop.first }}>&#8593;</button>
+                </form>
+                <form method="post" action="{{ url_for('main.checklist_item_mover', item_id=it.id) }}" class="inline">
+                  {{ m.csrf() }}<input type="hidden" name="tipo_actual" value="{{ tipo }}"><input type="hidden" name="direccion" value="bajar">
+                  <button class="btn-icon" title="Bajar" aria-label="Bajar paso {{ loop.index }}" {{ 'disabled' if loop.last }}>&#8595;</button>
+                </form>
+                <form method="post" action="{{ url_for('main.checklist_item_estado', item_id=it.id) }}" class="inline"
+                      data-confirm="Se quitará el paso “{{ it.texto|truncate(80) }}” del checklist de {{ tipo }}. Las visitas ya registradas lo conservan y podrá restaurarlo. ¿Continuar?">
+                  {{ m.csrf() }}<input type="hidden" name="tipo_actual" value="{{ tipo }}"><input type="hidden" name="activo" value="no">
+                  <button class="btn-icon btn-danger" title="Quitar" aria-label="Quitar paso {{ loop.index }}"><svg class="i"><use href="#i-trash"/></svg></button>
+                </form>
+              </span>
+            </div>
+            <details class="chk-admin-edit">
+              <summary>Editar</summary>
+              <form method="post" action="{{ url_for('main.checklist_item_editar', item_id=it.id) }}" class="form">
+                {{ m.csrf() }}<input type="hidden" name="tipo_actual" value="{{ tipo }}">
+                <div class="form-grid one">
+                  <div class="field"><label for="e-{{ it.id }}-sec">Sección</label>
+                    <input id="e-{{ it.id }}-sec" name="seccion" value="{{ it.seccion }}" list="dl-secciones" maxlength="120" required></div>
+                  <div class="field"><label for="e-{{ it.id }}-txt">Paso</label>
+                    <textarea id="e-{{ it.id }}-txt" name="texto" rows="2" maxlength="600" required>{{ it.texto }}</textarea></div>
+                </div>
+                <div class="form-actions"><span class="muted small mono">{{ it.id }}</span><div class="spacer"></div><button class="btn btn-sm btn-primary">Guardar</button></div>
+              </form>
+            </details>
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+      {% endfor %}
+    {% else %}
+      {{ m.empty('Sin pasos', 'Aún no hay checklist para ' ~ tipo ~ '. Agregue el primer paso con el formulario.') }}
+    {% endif %}
+
+    {% if inactivos %}
+    <section class="panel">
+      <div class="panel-head"><h2>Pasos quitados</h2><span class="muted small">No se muestran en visitas nuevas</span></div>
+      <ul class="unregistered">
+        {% for it in inactivos %}
+        <li>
+          <span class="muted"><span class="tag">{{ it.seccion }}</span> {{ it.texto }}</span>
+          <form method="post" action="{{ url_for('main.checklist_item_estado', item_id=it.id) }}" class="inline">
+            {{ m.csrf() }}<input type="hidden" name="tipo_actual" value="{{ tipo }}"><input type="hidden" name="activo" value="si">
+            <button class="btn btn-sm">Restaurar</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+
+  <section class="panel">
+    <div class="panel-head"><h2>Agregar paso</h2><span class="tag">{{ tipo }}</span></div>
+    <form method="post" action="{{ url_for('main.checklist_item_agregar') }}" class="form">
+      {{ m.csrf() }}<input type="hidden" name="tipo" value="{{ tipo }}">
+      <div class="form-grid one">
+        <div class="field"><label for="n-sec">Sección</label>
+          <select id="n-sec" name="seccion">
+            {% for sec in secciones %}<option>{{ sec }}</option>{% endfor %}
+            {% if not secciones %}<option value="">Sin secciones</option>{% endif %}
+          </select></div>
+        <div class="field"><label for="n-sec-nueva">O nueva sección</label>
+          <input id="n-sec-nueva" name="seccion_nueva" maxlength="120" placeholder="Ej.: Prueba DEX"></div>
+        <div class="field"><label for="n-txt">Paso <span class="req">*</span></label>
+          <textarea id="n-txt" name="texto" rows="3" maxlength="600" required placeholder="Describa la verificación o la prueba a realizar"></textarea></div>
+      </div>
+      <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">Agregar al checklist</button></div>
+    </form>
+    <datalist id="dl-secciones">{% for sec in secciones %}<option value="{{ sec }}">{% endfor %}</datalist>
+  </section>
+</div>
+{% endblock %}

@@ -74,6 +74,25 @@
   </div>
 </section>
 
+{% set chk = b.checklist %}
+<section class="x-sec">
+  <h2>Checklist de la integración{{ ' — ' ~ s.tipo_prueba if s.tipo_prueba }}</h2>
+  {% if chk.total %}
+  <p class="x-muted">{{ chk.exitosas }} exitosos · {{ chk.fallidas }} fallidos · {{ chk.sin_marcar }} sin marcar · {{ chk.total }} pasos</p>
+  {% for seccion, rows in chk.secciones %}
+  <h3>{{ seccion }}</h3>
+  <table class="x-table">
+    <thead><tr><th>#</th><th>Paso</th><th>Resultado</th><th>Observación</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td>{{ loop.index }}</td><td>{{ r.texto }}</td><td><strong>{{ r.resultado or 'Sin marcar' }}</strong></td><td class="x-pre">{{ r.observacion or '—' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+  {% else %}<p class="x-muted">La visita no tiene checklist registrado.</p>{% endif %}
+</section>
+
 <section class="x-sec">
   <h2>Observaciones generales</h2>
   <p class="x-pre">{{ s.observaciones or '—' }}</p>

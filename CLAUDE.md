@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~180 s; 73 pruebas)
+python -m pytest                    # Todas las pruebas (~210 s; 82 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -69,7 +69,7 @@ La migración `ensure_schema()` (idempotente, se ejecuta en cada escritura) agre
 - Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`, `Cliente WPOSS` + `País del cliente`, `Ciudad` + `País de la ciudad` (pares fila a fila, `CATALOG_PAIRS`, leídos con `read_pairs`) y `Firmware NEW5320`, `Nivel de la máquina` (Nivel 1-3) y `Resultado de prueba MDB / DEX`.
 - `_replace_catalog` sustituye `País` (lista anterior de la app) y `Tipo de prueba (sesión)` (`Listas!E`, valores originales del checklist) por las listas definidas por WPOSS **solo si conservan exactamente los valores anteriores**; deja historial y `initialize()` crea un respaldo antes de guardar la migración.
 - Columna `Categoría` al final de `App_Evidencias` (si la hoja ya existía sin ella).
-- Hojas: `App_Sesiones` (estado de registro Borrador/En curso/Cerrada), `App_Evidencias`, `App_Historial` (cambios campo a campo), `App_Contadores` (último número emitido por prefijo).
+- Hojas: `App_Sesiones` (estado de registro Borrador/En curso/Cerrada), `App_Evidencias`, `App_Historial` (cambios campo a campo), `App_Contadores` (último número emitido por prefijo), `App_Checklist` (plantilla) y `App_Checklist_Resultados` (resultados por visita). `_seed_checklist` carga `S.SEED_CHECKLIST` solo al crear `App_Checklist`.
 - Filas en `App_Sesiones` para sesiones preexistentes.
 
 ### Flujo de escritura
@@ -119,6 +119,13 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 - `S.ID_LEGACY_FIELDS` (MDB estándar/versión/módulo, versión anterior/nueva, fecha de instalación, checksum, compatibilidad) ya no están en el formulario: `update_session` conserva su valor si no llegan en el envío y `Service.legacy_fields()` los muestra cuando tienen datos. El resumen usa la línea `MDB:` original solo si la visita tiene esos campos; si no, `Versión de la máquina | Gateway MDB`, más las líneas `Prueba MDB/DEX`.
 - Categoría `Archivo DEX` → `logs/dex/` (extensión `.dex` tratada como texto).
 
+### Checklist de integración
+
+- Plantilla por tipo de prueba en `App_Checklist` (`CHK-NNN`, sección, orden, texto, activo `Sí`/`No`). Gestión en `/checklists` (`Service.add_checklist_item`, `update_checklist_item`, `move_checklist_item`, `set_checklist_item_active`; operaciones `checklist_add_item`, `checklist_update_item`, `checklist_reorder`). Quitar un paso lo marca inactivo; nunca se borra.
+- Resultados en `App_Checklist_Resultados` (fila por visita e ítem) con **copia del texto, sección y orden** al cargarse: editar la plantilla no altera visitas registradas. Operación `checklist_set_results` (crea o actualiza, con historial).
+- Campos de formulario `chk-<ID>-resultado` (catálogo `resultado_prueba`, vacío = sin marcar) y `chk-<ID>-obs`; `V.parse_checklist_results` exige observación si el resultado es `Fallida`. `create_session` valida identificación y checklist juntos y escribe todo en la misma operación.
+- Nueva visita: paso 5 con un bloque por tipo (`data-checklist-for`); `app.js` muestra solo el del tipo elegido y deshabilita los demás. Ficha: pestaña Checklist (`/visitas/<sid>/checklist`, `/visitas/<sid>/checklist/cargar`); `Service.session_checklist` agrupa y resume; macro `m.checklist`.
+
 ### Carpetas de visitas, evidencias e informes
 
 - `EvidenceManager.ensure_session_dir()` crea la carpeta de la visita con sus subcarpetas al crear la sesión.
@@ -144,6 +151,7 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 | `/visitas/<sid>/evidencias` (POST, varios archivos), `/archivo/<ruta>` | Subida y descarga de evidencias registradas |
 | `/carpetas`, `/carpetas/<sid>[?sub=fotos\|logs…][?vista=expediente]`, `/carpetas/<sid>/ver?ruta=` | Carpetas de visitas, archivos por subcarpeta, todos los datos, visor de logs |
 | `/carpetas/<sid>/informe`, `/reportes/informe` (POST), `/carpetas/<sid>/descargar`, `/carpetas/<sid>/abrir`, `/carpetas/<sid>/registrar`, `/carpetas/<sid>/eliminar` | Generar informe, descargar .zip, abrir en Explorador, registrar archivo copiado, eliminar archivo a la papelera |
+| `/checklists[?tipo=]`, `/checklists/item` (POST), `/checklists/item/<id>[/mover\|/estado]` | Gestión de la plantilla de checklist |
 | `/maquinas`, `/identificacion`, `/revision`, `/reportes`, `/reportes/comparar`, `/reportes/exportar` | Consultas y reportes |
 | `/configuracion`, `/respaldos/*`, `/pendientes/reintentar` | Configuración, respaldos, cambios pendientes |
 

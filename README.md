@@ -94,12 +94,13 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 |---|---|
 | Dashboard | Indicadores calculados desde el libro, con filtros por fecha, cliente, fabricante, modelo, firmware y estado. Sin datos muestra un estado vacío, nunca cifras ficticias. |
 | Visitas e integraciones | Histórico con búsqueda, filtros, orden y paginación. Cada fila abre la ficha de la sesión. |
-| Nueva visita | Formulario en 5 pasos: Visita, Equipos (máquina con código del fabricante y nivel; POS con firmware), Software (versión de la máquina, gateway MDB, Financiera, Agente Polaris, configuraciones), Pruebas MDB y DEX (resultado y qué se observó o qué error ocurrió; en DEX también archivo obtenido, Customer ID y Provider ID) y Evidencias. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
+| Nueva visita | Formulario en 6 pasos: Visita, Equipos (máquina con código del fabricante y nivel; POS con firmware), Software (versión de la máquina, gateway MDB, Financiera, Agente Polaris, configuraciones), Pruebas MDB y DEX (resultado y qué se observó o qué error ocurrió; en DEX también archivo obtenido, Customer ID y Provider ID), Checklist y Evidencias. **Guardar borrador** permite completarlo después. El Sesión ID se asigna solo. El botón **Pendiente** escribe "Pendiente de confirmar". |
 | Ficha de la sesión | Pestañas Resumen, Revisión física, Pruebas, Incidencias, Evidencias e Historial. |
 | Revisión física y eléctrica | Crea los 8 ítems del checklist por sesión; permite ítems adicionales. |
 | Casos de prueba | El ID se genera según el componente (MDB-004…). Una prueba **nunca** se aprueba sola: Aprobado/Fallido exigen resultado obtenido, y cambiar de Pendiente exige resultado esperado. |
 | Incidencias | Desde una prueba Fallida o Bloqueada, **Crear incidencia** precarga sesión, componente, versión y resultados. Cada cambio de estado queda en el historial. Editar una prueba no cierra sus incidencias. |
 | Cierre de sesión | Totales equivalentes a las fórmulas del libro, criterios de aceptación, concepto sugerido (orientativo), pendientes por responsable y **resumen para correo** con botón Copiar. |
+| Checklists | Pasos del checklist por tipo de prueba: agregar, editar, ordenar, quitar y restaurar. |
 | Carpetas de visitas | Una carpeta por visita con sus archivos y todos sus datos; genera el informe y descarga la carpeta en .zip (ver sección 6). |
 | Informes y reportes | Informe completo por visita, exportar a Excel (libro nuevo), comparar 2–6 sesiones, pruebas por serial de POS e historial de un modelo. |
 | Configuración y respaldos | Catálogos, criterios de cierre, retención de respaldos, restauración, cambios pendientes y log. |
@@ -121,6 +122,20 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 - Al iniciar, si el libro aún tiene la lista anterior de países o los tipos de prueba originales del
   checklist, se reemplazan por los nuevos (antes se crea un respaldo y el cambio queda en
   *App_Historial*). Las visitas anteriores conservan sus valores y se pueden editar sin cambiarlos.
+
+### Checklist de la integración
+
+- El paso **5 · Checklist** de Nueva visita muestra los pasos definidos para el tipo de prueba elegido.
+  Cada paso se marca como **Exitosa, Fallida, No realizada o No aplica** y admite una observación
+  (obligatoria si el paso falla). Se puede completar después en la pestaña **Checklist** de la ficha.
+- **Nueva Integración** trae cargados los pasos de *Preguntas iniciales* (8) y *Prueba terminal 5320* (5).
+- **Checklists** (menú lateral) permite, por tipo de prueba, agregar pasos y secciones, editar el texto,
+  cambiar el orden y quitar o restaurar pasos.
+- Al registrar una visita se copia el texto de cada paso: los cambios posteriores en la plantilla no
+  alteran las visitas ya registradas. Si una visita no tiene checklist (por ejemplo, visitas anteriores),
+  la ficha permite cargarlo.
+- La plantilla se guarda en la hoja *App_Checklist* y los resultados en *App_Checklist_Resultados*.
+  El checklist aparece en los datos de la carpeta y en el informe de la visita.
 
 ### Pruebas MDB y DEX de la visita
 

@@ -18,12 +18,15 @@ SHEET_APP_SESIONES = "App_Sesiones"
 SHEET_APP_EVIDENCIAS = "App_Evidencias"
 SHEET_APP_HISTORIAL = "App_Historial"
 SHEET_APP_CONTADORES = "App_Contadores"
+SHEET_APP_CHECKLIST = "App_Checklist"
+SHEET_APP_CHECKLIST_RES = "App_Checklist_Resultados"
 
 ORIGINAL_SHEETS = [
     SHEET_INSTRUCCIONES, SHEET_LISTAS, SHEET_ID, SHEET_REVISION,
     SHEET_CASOS, SHEET_INCIDENCIAS, SHEET_CIERRE,
 ]
-APP_SHEETS = [SHEET_APP_SESIONES, SHEET_APP_EVIDENCIAS, SHEET_APP_HISTORIAL, SHEET_APP_CONTADORES]
+APP_SHEETS = [SHEET_APP_SESIONES, SHEET_APP_EVIDENCIAS, SHEET_APP_HISTORIAL, SHEET_APP_CONTADORES,
+              SHEET_APP_CHECKLIST, SHEET_APP_CHECKLIST_RES]
 
 # (clave, encabezado exacto). Las marcadas como "added" no existen en el
 # libro original y se agregan al final de la hoja durante la migración.
@@ -191,6 +194,28 @@ APP_HISTORIAL_COLUMNS = [
     ("nuevo", "Valor nuevo"),
     ("accion", "Acción"),
 ]
+# Plantilla de checklist por tipo de prueba (gestionable desde la interfaz).
+APP_CHECKLIST_COLUMNS = [
+    ("id", "ID"),
+    ("tipo", "Tipo de prueba"),
+    ("seccion", "Sección"),
+    ("orden", "Orden"),
+    ("texto", "Ítem"),
+    ("activo", "Activo"),
+]
+# Resultado de cada ítem en una visita. El texto se copia al crear la visita para que los
+# cambios posteriores de la plantilla no alteren el histórico.
+APP_CHECKLIST_RES_COLUMNS = [
+    ("sesion_id", "Sesión ID"),
+    ("item_id", "ID ítem"),
+    ("tipo", "Tipo de prueba"),
+    ("seccion", "Sección"),
+    ("orden", "Orden"),
+    ("texto", "Ítem"),
+    ("resultado", "Resultado"),
+    ("observacion", "Observación"),
+    ("fecha", "Fecha"),
+]
 APP_CONTADORES_COLUMNS = [
     ("prefijo", "Prefijo"),
     ("ultimo", "Último número"),
@@ -206,6 +231,8 @@ SHEET_COLUMNS = {
     SHEET_APP_EVIDENCIAS: APP_EVIDENCIAS_COLUMNS,
     SHEET_APP_HISTORIAL: APP_HISTORIAL_COLUMNS,
     SHEET_APP_CONTADORES: APP_CONTADORES_COLUMNS,
+    SHEET_APP_CHECKLIST: APP_CHECKLIST_COLUMNS,
+    SHEET_APP_CHECKLIST_RES: APP_CHECKLIST_RES_COLUMNS,
 }
 
 # Encabezados de la hoja Listas (catálogos). Los tres últimos se agregan.
@@ -316,3 +343,33 @@ EXAMPLE_MARKER = "fila de ejemplo"
 
 # Colores del libro original.
 COLOR_CALC = "FFE2EFEA"   # celda calculada (verde claro)
+
+
+# Checklist inicial de "Nueva Integración" (definido por WPOSS). Se carga una sola vez al
+# crear la hoja App_Checklist; después se gestiona desde la interfaz.
+SEED_CHECKLIST = {
+    "Nueva Integración": [
+        ("Preguntas iniciales", [
+            "Verificar los implementos necesarios para la visita: 2 cables MDB, 2 cables DEX, PC, "
+            "dispositivo 5320 con su cargador, multímetro y Sniffer Qibixx.",
+            "Validar que el terminal 5320 tenga instalada la versión de firmware más reciente.",
+            "Confirmar la disponibilidad de dos terminales: uno en modo release y otro en debug.",
+            "Asegurar que el SwitchMode del dispositivo esté configurado en Host Mode.",
+            "Verificar que la máquina cuente con sensores de caída y/o permita realizar operaciones con la "
+            "puerta abierta.",
+            "Realizar la conexión del dispositivo a la máquina expendedora con la máquina VMC apagada.",
+            "Confirmar que la máquina tenga los productos configurados correctamente.",
+            "Verificar que el terminal tenga instaladas las aplicaciones MDB y Financiera.",
+        ]),
+        ("Prueba terminal 5320", [
+            "Verificar que la aplicación MDB y la máquina expendedora establezcan conexión correctamente.",
+            "Realizar ventas exitosas y validar que el producto se dispense correctamente.",
+            "Realizar una prueba de venta cancelada desde la aplicación y confirmar que la cancelación se "
+            "refleje en la VMC.",
+            "Ejecutar ventas en los tres niveles configurados en los ajustes generales.",
+            "Revisar que el precio del producto coincida con el valor recibido en el dispositivo.",
+        ]),
+    ],
+}
+CHECKLIST_ACTIVO = "Sí"
+CHECKLIST_INACTIVO = "No"

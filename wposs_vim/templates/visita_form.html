@@ -17,7 +17,8 @@
     <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
     <li><button type="button" data-step-to="2"><span>3</span>Software</button></li>
     <li><button type="button" data-step-to="3"><span>4</span>Pruebas MDB y DEX</button></li>
-    {% if not sid %}<li><button type="button" data-step-to="4"><span>5</span>Evidencias</button></li>{% endif %}
+    {% if not sid %}<li><button type="button" data-step-to="4"><span>5</span>Checklist</button></li>
+    <li><button type="button" data-step-to="5"><span>6</span>Evidencias</button></li>{% endif %}
   </ol>
 
   <section class="form-section" data-step>
@@ -100,6 +101,22 @@
   </section>
 
   {% if not sid %}
+  <section class="form-section" data-step>
+    <h2>Checklist de la integración</h2>
+    <p class="muted small">Pasos definidos para el tipo de prueba elegido. Marque el resultado de cada paso a medida que avanza; puede completarlo después desde la ficha de la visita. Los pasos se gestionan en <a href="{{ url_for('main.checklists') }}" target="_blank" rel="noopener">Checklists</a>.</p>
+    <p class="note small" data-checklist-empty>Seleccione el tipo de prueba en el paso 1 para ver su checklist.</p>
+    {% for tipo, sections in checklist_templates.items() %}
+    <div class="chk-block" data-checklist-for="{{ tipo }}"{% if v.get('tipo_prueba') != tipo %} hidden{% endif %}>
+      <p class="chk-block-title"><span class="tag">{{ tipo }}</span> {{ sections|map(attribute=1)|map('length')|sum }} pasos</p>
+      {% if sections %}
+        {{ m.checklist(sections, v, errors, cat.resultado_prueba) }}
+      {% else %}
+        <p class="muted small">No hay checklist definido para {{ tipo }}. Puede crearlo en Checklists.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </section>
+
   <section class="form-section" data-step>
     <h2>Evidencias de la visita</h2>
     <p class="muted small">Los archivos se guardan en la carpeta de la visita, separados en fotos, logs y documentos. Puede seleccionar varios archivos en cada campo, agregar más en varias selecciones y quitar con “Quitar” los que no correspondan antes de guardar. Todos son opcionales y también se pueden agregar después desde “Carpetas de visitas”.</p>

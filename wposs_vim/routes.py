@@ -148,7 +148,8 @@ def _session_form_context(values=None, errors=None, sid=None):
             "upload_fields": VISIT_UPLOAD_FIELDS, "ciudades": data.ciudades,
             "clientes_pais_json": json.dumps(data.clientes_pais, ensure_ascii=False),
             "ciudades_json": json.dumps(data.ciudades, ensure_ascii=False),
-            "objetivos_json": json.dumps(svc().objective_templates(), ensure_ascii=False)}
+            "objetivos_json": json.dumps(svc().objective_templates(), ensure_ascii=False),
+            "checklist_templates": svc().checklist_templates(data)}
 
 
 LOG_ACCEPT = ".log,.txt,.csv,.json,.xml,.bin,.hex,.zip,.7z"
@@ -226,16 +227,60 @@ def visita_editar(sid):
 
 
 @bp.route("/visitas/<sid>")
-def visita(sid):
+def visita(sid, tab=None, chk_values=None, chk_errors=None):
     _session_or_404(sid)
     service = svc()
     bundle = service.session_bundle(sid)
-    tab = request.args.get("tab", "resumen")
+    tab = tab or request.args.get("tab", "resumen")
     data = service.data()
     return render_template("visita_detalle.html", b=bundle, tab=tab, cat=data.catalogos,
                            totals=service.totals(sid, data), ev=service.evaluate_closure(sid, data),
                            record_types=RECORD_TYPES, upload_categories=UPLOAD_CATEGORIES,
-                           legacy_fields=service.legacy_fields(bundle["sesion"]), active="visitas")
+                           legacy_fields=service.legacy_fields(bundle["sesion"]),
+                           chk_values=chk_values if chk_values is not None else _checklist_values(bundle["checklist"]),
+                           chk_errors=chk_errors or {},
+                           chk_missing=service.missing_checklist_items(sid, data), active="visitas")
+
+
+def _checklist_values(checklist):
+    """Valores del checklist de una visita con los nombres de campo del formulario."""
+    values = {}
+    for _, rows in checklist["secciones"]:
+        for r in rows:
+            values[f"chk-{r['item_id']}-resultado"] = r.get("resultado", "")
+            values[f"chk-{r['item_id']}-obs"] = r.get("observacion", "")
+    return values
+
+
+@bp.route("/visitas/<sid>/checklist", methods=["POST"])
+def checklist_guardar(sid):
+    _session_or_404(sid)
+    back = url_for("main.visita", sid=sid, tab="checklist")
+    try:
+        svc().save_session_checklist(sid, request.form)
+        flash("Checklist guardado.", "ok")
+    except ValidationError as exc:
+        flash(exc.message, "error")
+        return visita(sid, tab="checklist", chk_values=request.form, chk_errors=exc.errors), 422
+    except StoreError as exc:
+        resp = _write_errors(exc, back)
+        if resp:
+            return resp
+    return redirect(back)
+
+
+@bp.route("/visitas/<sid>/checklist/cargar", methods=["POST"])
+def checklist_cargar(sid):
+    _session_or_404(sid)
+    back = url_for("main.visita", sid=sid, tab="checklist")
+    try:
+        n = svc().load_session_checklist(sid)
+        flash(f"Se agregaron {n} paso(s) del checklist a la visita." if n else "La visita ya tiene todos los pasos.", "ok")
+    except StoreError as exc:
+        resp = _write_errors(exc, back)
+        if resp:
+            return resp
+    return redirect(back)
 
 
 # --------------------------------------------------------------------------
@@ -794,6 +839,91 @@ def exportar():
 # --------------------------------------------------------------------------
 # Configuración y respaldos
 # --------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------
+# Gestión de checklists
+# --------------------------------------------------------------------------
+
+@bp.route("/checklists")
+def checklists():
+    service = svc()
+    data = service.data()
+    tipos = data.catalogos.get("tipo_prueba", [])
+    tipo = request.args.get("tipo") or (tipos[0] if tipos else "")
+    if tipos and tipo not in tipos:
+        abort(404)
+    items = service.checklist_items(tipo, data, include_inactive=True)
+    activos = [i for i in items if i.get("activo") != S.CHECKLIST_INACTIVO]
+    inactivos = [i for i in items if i.get("activo") == S.CHECKLIST_INACTIVO]
+    counts = {t: len(service.checklist_items(t, data)) for t in tipos}
+    secciones = [sec for sec, _ in service.group_sections(items)]
+    return render_template("checklists.html", tipos=tipos, tipo=tipo, counts=counts,
+                           sections=service.group_sections(activos), inactivos=inactivos,
+                           secciones=secciones, errors={}, v={}, active="checklists")
+
+
+def _checklist_redirect(tipo):
+    return redirect(url_for("main.checklists", tipo=tipo) if tipo else url_for("main.checklists"))
+
+
+@bp.route("/checklists/item", methods=["POST"])
+def checklist_item_agregar():
+    tipo = request.form.get("tipo", "")
+    try:
+        item_id = svc().add_checklist_item(request.form)
+        flash(f"Paso {item_id} agregado al checklist de {tipo}.", "ok")
+    except ValidationError as exc:
+        flash("No se agregó el paso: " + " ".join(exc.errors.values()), "error")
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.checklists", tipo=tipo))
+        if resp:
+            return resp
+    return _checklist_redirect(tipo)
+
+
+@bp.route("/checklists/item/<item_id>", methods=["POST"])
+def checklist_item_editar(item_id):
+    tipo = request.form.get("tipo_actual", "")
+    try:
+        svc().update_checklist_item(item_id, request.form)
+        flash(f"Paso {item_id} actualizado.", "ok")
+    except ValidationError as exc:
+        flash("No se actualizó el paso: " + " ".join(exc.errors.values()), "error")
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.checklists", tipo=tipo))
+        if resp:
+            return resp
+    return _checklist_redirect(tipo)
+
+
+@bp.route("/checklists/item/<item_id>/mover", methods=["POST"])
+def checklist_item_mover(item_id):
+    tipo = request.form.get("tipo_actual", "")
+    direction = request.form.get("direccion")
+    if direction not in ("subir", "bajar"):
+        abort(400)
+    try:
+        svc().move_checklist_item(item_id, direction)
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.checklists", tipo=tipo))
+        if resp:
+            return resp
+    return _checklist_redirect(tipo)
+
+
+@bp.route("/checklists/item/<item_id>/estado", methods=["POST"])
+def checklist_item_estado(item_id):
+    tipo = request.form.get("tipo_actual", "")
+    activo = request.form.get("activo") == "si"
+    try:
+        svc().set_checklist_item_active(item_id, activo)
+        flash(f"Paso {item_id} {'restaurado' if activo else 'quitado del checklist'}.", "ok")
+    except StoreError as exc:
+        resp = _write_errors(exc, url_for("main.checklists", tipo=tipo))
+        if resp:
+            return resp
+    return _checklist_redirect(tipo)
+
 
 @bp.route("/configuracion")
 def configuracion():

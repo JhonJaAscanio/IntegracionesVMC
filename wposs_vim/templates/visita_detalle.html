@@ -22,7 +22,7 @@
 {% endif %}
 
 <nav class="tabs">
-  {% for key, label, count in [('resumen', 'Resumen', None), ('revision', 'Revisión física', b.revisiones|length), ('pruebas', 'Pruebas', b.pruebas|length), ('incidencias', 'Incidencias', b.incidencias|length), ('evidencias', 'Evidencias', b.evidencias|length), ('historial', 'Historial', b.historial|length)] %}
+  {% for key, label, count in [('resumen', 'Resumen', None), ('revision', 'Revisión física', b.revisiones|length), ('pruebas', 'Pruebas', b.pruebas|length), ('incidencias', 'Incidencias', b.incidencias|length), ('checklist', 'Checklist', b.checklist.total), ('evidencias', 'Evidencias', b.evidencias|length), ('historial', 'Historial', b.historial|length)] %}
     <a href="{{ url_for('main.visita', sid=s.sesion_id, tab=key) }}" class="{{ 'active' if tab == key }}">{{ label }}{% if count is not none %}<span class="count">{{ count }}</span>{% endif %}</a>
   {% endfor %}
 </nav>
@@ -218,6 +218,40 @@
   </div>
   {% else %}
     {{ m.empty('Sin incidencias', 'Las incidencias pueden crearse desde una prueba fallida o bloqueada.', url_for('main.incidencia_nueva', sesion=s.sesion_id), 'Nueva incidencia') }}
+  {% endif %}
+</section>
+
+{% elif tab == 'checklist' %}
+{% set chk = b.checklist %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Checklist de la integración</h2>
+    <span class="tag">{{ s.tipo_prueba or 'Sin tipo de prueba' }}</span>
+  </div>
+  {% if chk.total %}
+    <div class="chk-summary">
+      <span><strong>{{ chk.exitosas }}</strong> exitosos</span>
+      <span><strong>{{ chk.fallidas }}</strong> fallidos</span>
+      <span><strong>{{ chk.sin_marcar }}</strong> sin marcar</span>
+      <span>de <strong>{{ chk.total }}</strong> pasos</span>
+    </div>
+    <div class="stack-bar mt" role="img" aria-label="Avance del checklist">
+      {% for r, n in chk.conteo.items() if r != 'Sin marcar' %}<span class="seg seg-{{ r|estado_clase }}" style="width: {{ (n / chk.total * 100)|round(2) }}%"></span>{% endfor %}
+    </div>
+    <form method="post" action="{{ url_for('main.checklist_guardar', sid=s.sesion_id) }}" class="form mt">
+      {{ m.csrf() }}
+      {{ m.checklist(chk.secciones, chk_values, chk_errors, cat.resultado_prueba, key_attr='item_id') }}
+      <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">Guardar checklist</button></div>
+    </form>
+  {% elif not chk_missing %}
+    {{ m.empty('Sin checklist', 'No hay checklist definido para ' ~ (s.tipo_prueba or 'este tipo de prueba') ~ '. Puede crearlo en Checklists.', url_for('main.checklists', tipo=s.tipo_prueba) if s.tipo_prueba else url_for('main.checklists'), 'Ir a Checklists') }}
+  {% endif %}
+  {% if chk_missing %}
+  <form method="post" action="{{ url_for('main.checklist_cargar', sid=s.sesion_id) }}" class="inline-form">
+    {{ m.csrf() }}
+    <span class="muted small">{{ chk_missing|length }} paso(s) del checklist de {{ s.tipo_prueba }} no están en esta visita.</span>
+    <button class="btn btn-sm{{ ' btn-primary' if not chk.total }}">{{ 'Cargar checklist' if not chk.total else 'Agregar pasos nuevos' }}</button>
+  </form>
   {% endif %}
 </section>
 

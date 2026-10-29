@@ -26,12 +26,13 @@
       ('pruebas', 'main.pruebas', 'Casos de prueba', 'check'),
       ('incidencias', 'main.incidencias', 'Incidencias', 'alert'),
       ('cierre', 'main.cierre_lista', 'Cierre de sesión', 'flag'),
+      ('checklists', 'main.checklists', 'Checklists', 'clipboard'),
       ('reportes', 'main.reportes', 'Informes y reportes', 'chart'),
       ('configuracion', 'main.configuracion', 'Configuración y respaldos', 'settings'),
     ] %}
     <nav>
       {% for key, endpoint, label, icon in nav %}
-        {% if key == 'maquinas' or key == 'reportes' %}<div class="nav-sep"></div>{% endif %}
+        {% if key == 'maquinas' or key == 'checklists' %}<div class="nav-sep"></div>{% endif %}
         <a href="{{ url_for(endpoint) }}" class="{{ 'active' if active == key }}">
           <svg class="i"><use href="#i-{{ icon }}"/></svg><span>{{ label }}</span>
         </a>

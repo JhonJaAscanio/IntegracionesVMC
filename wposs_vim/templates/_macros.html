@@ -93,3 +93,30 @@
   <button class="btn-icon btn-danger" title="Eliminar {{ e.archivo }}" aria-label="Eliminar {{ e.archivo }}"><svg class="i"><use href="#i-trash"/></svg></button>
 </form>
 {%- endmacro %}
+
+{% macro checklist(sections, v, errors, resultados, key_attr='id') -%}
+{% for seccion, items in sections %}
+<div class="chk-section">
+  <h3 class="chk-title">{{ seccion }}</h3>
+  <ol class="chk-list">
+    {% for it in items %}
+    {% set k = it[key_attr] %}
+    {% set res = v.get('chk-' ~ k ~ '-resultado', '') %}
+    <li class="chk-item{{ ' has-error' if errors.get('chk-' ~ k) }}{{ ' is-' ~ (res|estado_clase) if res }}">
+      <div class="chk-text"><span class="chk-num">{{ loop.index }}</span><span>{{ it.texto }}</span></div>
+      <div class="chk-controls">
+        <div class="chk-options" role="radiogroup" aria-label="Resultado del paso {{ loop.index }}">
+          {% for r in resultados %}
+          <label class="chk-opt chk-opt-{{ r|estado_clase }}"><input type="radio" name="chk-{{ k }}-resultado" value="{{ r }}" {{ 'checked' if res == r }}><span>{% if r == 'Exitosa' %}&#10003; {% elif r == 'Fallida' %}&#10007; {% endif %}{{ r }}</span></label>
+          {% endfor %}
+          <label class="chk-opt chk-opt-clear"><input type="radio" name="chk-{{ k }}-resultado" value="" {{ 'checked' if not res }}><span>Sin marcar</span></label>
+        </div>
+        <input class="chk-obs" name="chk-{{ k }}-obs" value="{{ v.get('chk-' ~ k ~ '-obs', '') }}" maxlength="4000" placeholder="Observación (obligatoria si falla)" aria-label="Observación del paso {{ loop.index }}">
+      </div>
+      {% if errors.get('chk-' ~ k) %}<p class="field-error">{{ errors['chk-' ~ k] }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+{% endfor %}
+{%- endmacro %}

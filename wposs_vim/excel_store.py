@@ -335,6 +335,20 @@ def _replace_catalog(wb, key, legacy, new):
     return True
 
 
+def _seed_checklist(wb):
+    """Carga el checklist inicial definido por WPOSS en la hoja recién creada."""
+    sh = sheet(wb, S.SHEET_APP_CHECKLIST)
+    n = 0
+    for tipo, sections in S.SEED_CHECKLIST.items():
+        for seccion, items in sections:
+            for orden, texto in enumerate(items, start=1):
+                n += 1
+                sh.append({"id": f"CHK-{n:03d}", "tipo": tipo, "seccion": seccion, "orden": orden,
+                           "texto": texto, "activo": S.CHECKLIST_ACTIVO})
+    if n:
+        sheet(wb, S.SHEET_APP_CONTADORES).append({"prefijo": "CHK", "ultimo": n})
+
+
 def read_pairs(wb, key):
     """Pares (valor, país) de un catálogo emparejado en Listas, fila a fila."""
     col = catalog_column(wb, key)
@@ -410,6 +424,8 @@ def ensure_schema(wb):
     for name in S.APP_SHEETS:
         if name not in wb.sheetnames:
             _create_app_sheet(wb, name, header_src)
+            if name == S.SHEET_APP_CHECKLIST:
+                _seed_checklist(wb)
             changed = True
     changed |= _add_columns(wb[S.SHEET_APP_EVIDENCIAS], S.APP_EVIDENCIAS_COLUMNS, S.APP_EVIDENCIAS_ADDED, 18)
 
@@ -512,6 +528,8 @@ class Data:
         self.evidencias = list(sheet(wb, S.SHEET_APP_EVIDENCIAS).rows())
         self.historial = list(sheet(wb, S.SHEET_APP_HISTORIAL).rows())
         self.contadores = {r["prefijo"]: r["ultimo"] for r in sheet(wb, S.SHEET_APP_CONTADORES).rows()}
+        self.checklist = list(sheet(wb, S.SHEET_APP_CHECKLIST).rows())
+        self.checklist_res = list(sheet(wb, S.SHEET_APP_CHECKLIST_RES).rows())
         self.catalogos = read_catalogs(wb)
         self.clientes_pais = dict(read_pairs(wb, "cliente"))
         self.ciudades = {}

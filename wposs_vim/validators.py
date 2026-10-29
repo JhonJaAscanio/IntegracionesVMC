@@ -167,3 +167,42 @@ def validate_session_id(value):
     if not SESSION_ID_RE.match(value or ""):
         raise ValidationError({"sesion_id": "Sesión ID no válido."}, "Sesión ID no válido.")
     return value
+
+
+def validate_checklist_item(data, tipos):
+    """Valida un ítem de la plantilla de checklist (tipo, sección y texto)."""
+    errors = {}
+    _required(data, ["tipo", "seccion", "texto"], errors)
+    if data.get("tipo") and data["tipo"] not in tipos:
+        errors["tipo"] = "Seleccione un tipo de prueba válido."
+    if len(data.get("seccion", "")) > 120:
+        errors["seccion"] = "Máximo 120 caracteres."
+    if len(data.get("texto", "")) > 600:
+        errors["texto"] = "Máximo 600 caracteres."
+    if errors:
+        raise ValidationError(errors)
+    return data
+
+
+def parse_checklist_results(form, items, resultados):
+    """Lee del formulario el resultado y la observación de cada ítem del checklist.
+
+    Campos: chk-<ID>-resultado y chk-<ID>-obs. Un ítem Fallido exige la observación.
+    """
+    entries, errors = [], {}
+    for item in items:
+        key = item.get("item_id") or item["id"]
+        resultado = (form.get(f"chk-{key}-resultado") or "").strip()
+        observacion = (form.get(f"chk-{key}-obs") or "").replace("\r\n", "\n").strip()
+        if resultado and resultado not in resultados:
+            errors[f"chk-{key}"] = "Resultado no válido."
+        elif resultado == S.RESULTADO_FALLIDA and not observacion:
+            errors[f"chk-{key}"] = "Describa qué falló en este paso."
+        if len(observacion) > MAX_TEXT:
+            errors[f"chk-{key}"] = f"Máximo {MAX_TEXT} caracteres."
+        entries.append({"item_id": key, "tipo": item["tipo"], "seccion": item["seccion"],
+                        "orden": item["orden"], "texto": item["texto"],
+                        "resultado": resultado, "observacion": observacion})
+    if errors:
+        raise ValidationError(errors, "Revise el checklist: hay pasos fallidos sin observación o valores no válidos.")
+    return entries

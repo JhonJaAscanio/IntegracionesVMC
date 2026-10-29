@@ -123,6 +123,7 @@ class Service:
             "cierre": next((c for c in data.cierres if c["sesion_id"] == sid), None),
             "evidencias": [e for e in data.evidencias if e["sesion_id"] == sid],
             "historial": [h for h in data.historial if h["sesion_id"] == sid],
+            "checklist": self.session_checklist(sid, data),
         }
 
     # ------------------------------------------------------------------
@@ -133,7 +134,7 @@ class Service:
         pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
         numbers = [0]
         for rows, key in ((data.sesiones, "sesion_id"), (data.pruebas, "id"),
-                          (data.incidencias, "id"), (data.evidencias, "id")):
+                          (data.incidencias, "id"), (data.evidencias, "id"), (data.checklist, "id")):
             for rec in rows:
                 m = pattern.match(rec.get(key, ""))
                 if m:
@@ -174,7 +175,20 @@ class Service:
         with self.store._lock:
             data = self.data()
             values = V.clean(form, V.SESSION_FIELDS)
-            V.validate_session(values, data.catalogos, draft, data.ciudades)
+            errors = {}
+            try:
+                V.validate_session(values, data.catalogos, draft, data.ciudades)
+            except ValidationError as exc:
+                errors.update(exc.errors)
+            checklist = []
+            try:
+                checklist = V.parse_checklist_results(
+                    form, self.checklist_items(values.get("tipo_prueba", ""), data),
+                    data.catalogos.get("resultado_prueba", []))
+            except ValidationError as exc:
+                errors.update(exc.errors)
+            if errors:
+                raise ValidationError(errors)
             self._validate_files(files or [])
             sid = self.next_id("SES", data)
             if any(s["sesion_id"] == sid for s in data.sesiones):
@@ -183,12 +197,152 @@ class Service:
             estado = S.ESTADO_REGISTRO_BORRADOR if draft else S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
             ops.append(("create_session", {"sesion": values, "estado_registro": estado}))
+            if checklist:
+                ops.append(("checklist_set_results", {"sesion_id": sid, "items": checklist}))
             if self.evidence:
                 self.evidence.ensure_session_dir(sid)
             metas = self._store_files(sid, files or [], "Visita", sid, data)
             ops += [("add_evidence", {"evidencia": m}) for m in metas]
             self._write_with_files(ops, f"Nueva sesión {sid}", metas)
             return sid
+
+    # ------------------------------------------------------------------
+    # Checklist de integración
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _orden(value):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return 0
+
+    def checklist_items(self, tipo, data=None, include_inactive=False):
+        """Ítems de la plantilla de un tipo de prueba, ordenados por sección y orden."""
+        data = data or self.data()
+        rows = [r for r in data.checklist if r["tipo"] == tipo
+                and (include_inactive or r.get("activo") != S.CHECKLIST_INACTIVO)]
+        section_order = []
+        for r in rows:
+            if r["seccion"] not in section_order:
+                section_order.append(r["seccion"])
+        return sorted(rows, key=lambda r: (section_order.index(r["seccion"]), self._orden(r["orden"]), r["id"]))
+
+    @staticmethod
+    def group_sections(items):
+        """[(sección, [ítems])] conservando el orden de aparición."""
+        groups = OrderedDict()
+        for item in items:
+            groups.setdefault(item["seccion"], []).append(item)
+        return list(groups.items())
+
+    def checklist_templates(self, data=None):
+        """{tipo de prueba: [(sección, [ítems activos])]} para el formulario de visita."""
+        data = data or self.data()
+        return {tipo: self.group_sections(self.checklist_items(tipo, data))
+                for tipo in data.catalogos.get("tipo_prueba", [])}
+
+    def session_checklist(self, sid, data=None):
+        """Resultados del checklist de una visita, agrupados por sección, y su resumen."""
+        data = data or self.data()
+        rows = [r for r in data.checklist_res if r["sesion_id"] == sid]
+        section_order = []
+        for r in rows:
+            if r["seccion"] not in section_order:
+                section_order.append(r["seccion"])
+        rows.sort(key=lambda r: (section_order.index(r["seccion"]), self._orden(r["orden"])))
+        counts = Counter(r.get("resultado") or "Sin marcar" for r in rows)
+        return {"secciones": self.group_sections(rows), "total": len(rows), "conteo": dict(counts),
+                "exitosas": counts.get("Exitosa", 0), "fallidas": counts.get(S.RESULTADO_FALLIDA, 0),
+                "sin_marcar": counts.get("Sin marcar", 0)}
+
+    def missing_checklist_items(self, sid, data=None):
+        """Ítems activos de la plantilla del tipo de la visita que aún no tiene la visita."""
+        data = data or self.data()
+        session = self.get_session(sid, data)
+        if session is None:
+            return []
+        present = {r["item_id"] for r in data.checklist_res if r["sesion_id"] == sid}
+        return [i for i in self.checklist_items(session.get("tipo_prueba", ""), data) if i["id"] not in present]
+
+    def save_session_checklist(self, sid, form):
+        """Guarda los resultados marcados en la pestaña Checklist de la visita."""
+        with self.store._lock:
+            data = self.data()
+            rows = [r for r in data.checklist_res if r["sesion_id"] == sid]
+            if not rows:
+                raise ValidationError({}, "La visita no tiene checklist cargado.")
+            entries = V.parse_checklist_results(form, rows, data.catalogos.get("resultado_prueba", []))
+            self.store.write([("checklist_set_results", {"sesion_id": sid, "items": entries})],
+                             f"Checklist de {sid}")
+
+    def load_session_checklist(self, sid):
+        """Agrega a la visita los ítems de la plantilla de su tipo que todavía no tiene."""
+        with self.store._lock:
+            data = self.data()
+            missing = self.missing_checklist_items(sid, data)
+            if not missing:
+                return 0
+            entries = [{"item_id": i["id"], "tipo": i["tipo"], "seccion": i["seccion"], "orden": i["orden"],
+                        "texto": i["texto"], "resultado": "", "observacion": ""} for i in missing]
+            self.store.write([("checklist_set_results", {"sesion_id": sid, "items": entries})],
+                             f"Checklist cargado en {sid}")
+            return len(entries)
+
+    def add_checklist_item(self, form):
+        with self.store._lock:
+            data = self.data()
+            values = V.clean(form, ["tipo", "seccion", "seccion_nueva", "texto"])
+            values["seccion"] = values.pop("seccion_nueva") or values["seccion"]
+            V.validate_checklist_item(values, data.catalogos.get("tipo_prueba", []))
+            same = [r for r in data.checklist if r["tipo"] == values["tipo"] and r["seccion"] == values["seccion"]]
+            values.update({"id": self.next_id("CHK", data), "activo": S.CHECKLIST_ACTIVO,
+                           "orden": max((self._orden(r["orden"]) for r in same), default=0) + 1})
+            self.store.write([("checklist_add_item", {"item": values})], f"Ítem de checklist {values['id']}")
+            return values["id"]
+
+    def update_checklist_item(self, item_id, form):
+        with self.store._lock:
+            data = self.data()
+            current = next((r for r in data.checklist if r["id"] == item_id), None)
+            if current is None:
+                raise ConflictError(f"El ítem {item_id} no existe.")
+            values = V.clean(form, ["seccion", "texto"])
+            values["tipo"] = current["tipo"]
+            V.validate_checklist_item(values, data.catalogos.get("tipo_prueba", []) + [current["tipo"]])
+            fields = {"seccion": values["seccion"], "texto": values["texto"]}
+            if values["seccion"] != current["seccion"]:
+                same = [r for r in data.checklist if r["tipo"] == current["tipo"] and r["seccion"] == values["seccion"]]
+                fields["orden"] = max((self._orden(r["orden"]) for r in same), default=0) + 1
+            self.store.write([("checklist_update_item", {"id": item_id, "fields": fields})],
+                             f"Edición del ítem {item_id}")
+
+    def set_checklist_item_active(self, item_id, active):
+        with self.store._lock:
+            data = self.data()
+            if not any(r["id"] == item_id for r in data.checklist):
+                raise ConflictError(f"El ítem {item_id} no existe.")
+            value = S.CHECKLIST_ACTIVO if active else S.CHECKLIST_INACTIVO
+            self.store.write([("checklist_update_item", {"id": item_id, "fields": {"activo": value},
+                                                         "accion": "Ítem restaurado" if active else "Ítem quitado"})],
+                             f"Ítem {item_id} {'restaurado' if active else 'quitado'}")
+
+    def move_checklist_item(self, item_id, direction):
+        """Sube o baja un ítem dentro de su sección."""
+        with self.store._lock:
+            data = self.data()
+            item = next((r for r in data.checklist if r["id"] == item_id), None)
+            if item is None:
+                raise ConflictError(f"El ítem {item_id} no existe.")
+            siblings = [r for r in self.checklist_items(item["tipo"], data, include_inactive=True)
+                        if r["seccion"] == item["seccion"]]
+            ids = [r["id"] for r in siblings]
+            i = ids.index(item_id)
+            j = i - 1 if direction == "subir" else i + 1
+            if not 0 <= j < len(ids):
+                return
+            ids[i], ids[j] = ids[j], ids[i]
+            self.store.write([("checklist_reorder", {"tipo": item["tipo"], "seccion": item["seccion"], "ids": ids})],
+                             f"Orden del checklist {item['tipo']}")
 
     # ------------------------------------------------------------------
     # Evidencias y carpetas de visita

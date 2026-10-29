@@ -362,6 +362,71 @@ def delete_evidence(wb, p):
     _touch_session(wb, rec["sesion_id"])
 
 
+# --------------------------------------------------------------------------
+# Checklist de integración
+# --------------------------------------------------------------------------
+
+def checklist_add_item(wb, p):
+    item = p["item"]
+    sh = sheet(wb, S.SHEET_APP_CHECKLIST)
+    if sh.find(id=item["id"]) is not None:
+        raise ConflictError(f"El ítem {item['id']} ya existe.")
+    sh.append(item)
+    _bump_counter(wb, item["id"])
+    _history(wb, "Checklist", item["id"], "", f"Ítem agregado a {item['tipo']} / {item['seccion']}",
+             {"Ítem": ("", item["texto"])})
+
+
+def checklist_update_item(wb, p):
+    sh = sheet(wb, S.SHEET_APP_CHECKLIST)
+    rec = sh.find(id=p["id"])
+    if rec is None:
+        raise ConflictError(f"El ítem {p['id']} no existe.")
+    fields = {k: v for k, v in p["fields"].items() if k in ("seccion", "orden", "texto", "activo")}
+    changes = _diff(sh, rec, fields)
+    _update_fields(sh, rec, fields)
+    if changes:
+        _history(wb, "Checklist", p["id"], "", p.get("accion") or "Ítem editado", changes)
+
+
+def checklist_reorder(wb, p):
+    """Asigna el orden 1..n a los ítems de una sección según la lista recibida."""
+    sh = sheet(wb, S.SHEET_APP_CHECKLIST)
+    recs = {r["id"]: r for r in sh.rows()}
+    for orden, item_id in enumerate(p["ids"], start=1):
+        rec = recs.get(item_id)
+        if rec is None or rec["tipo"] != p["tipo"]:
+            raise ConflictError(f"El ítem {item_id} no pertenece al checklist de {p['tipo']}.")
+        if rec.get("orden") != str(orden):
+            sh.ws.cell(rec["_row"], sh.col["orden"]).value = orden
+    _history(wb, "Checklist", p["tipo"], "", f"Orden actualizado en {p['seccion']}")
+
+
+def checklist_set_results(wb, p):
+    """Crea o actualiza los resultados del checklist de una visita (fila por ítem)."""
+    sid = p["sesion_id"]
+    _require_session(wb, sid)
+    sh = sheet(wb, S.SHEET_APP_CHECKLIST_RES)
+    existing = {r["item_id"]: r for r in sh.rows() if r["sesion_id"] == sid}
+    now = _now()
+    for entry in p["items"]:
+        rec = existing.get(entry["item_id"])
+        values = {k: entry.get(k, "") for k in ("tipo", "seccion", "orden", "texto", "resultado", "observacion")}
+        if rec is None:
+            sh.append({"sesion_id": sid, "item_id": entry["item_id"], **values, "fecha": now})
+            if values["resultado"]:
+                _history(wb, "Checklist", entry["item_id"], sid, "Resultado registrado",
+                         {"Resultado": ("", values["resultado"])})
+            continue
+        fields = {"resultado": values["resultado"], "observacion": values["observacion"]}
+        changes = _diff(sh, rec, fields)
+        if changes:
+            fields["fecha"] = now
+            _update_fields(sh, rec, fields)
+            _history(wb, "Checklist", entry["item_id"], sid, "Resultado actualizado", changes)
+    _touch_session(wb, sid)
+
+
 def delete_example(wb, p):
     """Vacía una fila marcada como ejemplo (decisión explícita del usuario)."""
     tipo, rid = p["tipo"], p["id"]
@@ -397,6 +462,10 @@ class Operations:
         "add_catalog_value": add_catalog_value,
         "add_evidence": add_evidence,
         "delete_evidence": delete_evidence,
+        "checklist_add_item": checklist_add_item,
+        "checklist_update_item": checklist_update_item,
+        "checklist_reorder": checklist_reorder,
+        "checklist_set_results": checklist_set_results,
         "delete_example": delete_example,
         "set_session_state": set_session_state,
     }

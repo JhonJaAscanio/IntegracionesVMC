@@ -324,3 +324,33 @@
     if (!objetivo.value.trim()) apply();
   });
 })();
+
+/* Checklist de la nueva visita: muestra solo el del tipo de prueba elegido y marca el estado de cada paso. */
+(function () {
+  "use strict";
+  var blocks = document.querySelectorAll("[data-checklist-for]");
+  var tipo = document.getElementById("f-tipo_prueba");
+  var empty = document.querySelector("[data-checklist-empty]");
+  if (blocks.length && tipo) {
+    var sync = function () {
+      var shown = false;
+      blocks.forEach(function (block) {
+        var active = block.dataset.checklistFor === tipo.value;
+        block.hidden = !active;
+        if (active) shown = true;
+        block.querySelectorAll("input, select, textarea").forEach(function (el) { el.disabled = !active; });
+      });
+      if (empty) empty.hidden = shown;
+    };
+    tipo.addEventListener("change", sync);
+    sync();
+  }
+  document.querySelectorAll(".chk-item").forEach(function (item) {
+    item.addEventListener("change", function (e) {
+      if (e.target.type !== "radio") return;
+      item.classList.remove("is-ok", "is-bad", "is-warn", "is-neutral");
+      var map = { "Exitosa": "is-ok", "Fallida": "is-bad", "No realizada": "is-warn", "No aplica": "is-neutral" };
+      if (map[e.target.value]) item.classList.add(map[e.target.value]);
+    });
+  });
+})();
