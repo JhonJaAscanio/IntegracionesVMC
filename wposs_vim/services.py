@@ -90,6 +90,9 @@ class Service:
             })
             rec["estado_integracion"] = concepto or rec["estado_registro"]
             rec["cliente_label"] = self.client_label(rec)
+            rec["raiz"] = rec.get("sesion_origen") or sid
+            rec["numero"] = self._orden(rec.get("numero_visita")) or 1
+            rec["es_seguimiento"] = bool(rec.get("sesion_origen"))
             result.append(rec)
         return result
 
@@ -124,6 +127,11 @@ class Service:
             "evidencias": [e for e in data.evidencias if e["sesion_id"] == sid],
             "historial": [h for h in data.historial if h["sesion_id"] == sid],
             "checklist": self.session_checklist(sid, data),
+            "serie": self.series(session["raiz"], data),
+            "serie_checklist": {v["sesion_id"]: self.session_checklist(v["sesion_id"], data)
+                                for v in self.series(session["raiz"], data)},
+            "pendientes_serie": self.series_pending(session["raiz"], data),
+            "trabajo_serie": self.series_open_work(session["raiz"], data),
         }
 
     # ------------------------------------------------------------------
@@ -180,10 +188,18 @@ class Service:
                 V.validate_session(values, data.catalogos, draft, data.ciudades)
             except ValidationError as exc:
                 errors.update(exc.errors)
+            root = None
+            if values.get("sesion_origen"):
+                origin = self.get_session(values["sesion_origen"], data)
+                if origin is None:
+                    errors["sesion_origen"] = "La visita de origen no existe."
+                else:
+                    root = origin["raiz"]
             checklist = []
             try:
                 checklist = V.parse_checklist_results(
-                    form, self.checklist_items(values.get("tipo_prueba", ""), data),
+                    form, self.visit_checklist_items(values.get("tipo_prueba", ""), root, data,
+                                                     include_pending=form.get("incluir_pendientes") != "no"),
                     data.catalogos.get("resultado_prueba", []))
             except ValidationError as exc:
                 errors.update(exc.errors)
@@ -194,6 +210,8 @@ class Service:
             if any(s["sesion_id"] == sid for s in data.sesiones):
                 raise ConflictError("No se pudo generar un Sesión ID único.")
             values["sesion_id"] = sid
+            values["sesion_origen"] = root or ""
+            values["numero_visita"] = (max(s["numero"] for s in self.series(root, data)) + 1) if root else 1
             estado = S.ESTADO_REGISTRO_BORRADOR if draft else S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
             ops.append(("create_session", {"sesion": values, "estado_registro": estado}))
@@ -345,6 +363,63 @@ class Service:
                              f"Orden del checklist {item['tipo']}")
 
     # ------------------------------------------------------------------
+    # Integración: visita de origen y visitas de seguimiento
+    # ------------------------------------------------------------------
+    def series(self, root, data=None):
+        """Visitas de una integración (origen y seguimientos) ordenadas por número de visita."""
+        data = data or self.data()
+        visits = [s for s in self.sessions(data, include_examples=True) if s["raiz"] == root]
+        return sorted(visits, key=lambda s: (s["numero"], s.get("fecha", ""), s["sesion_id"]))
+
+    def series_pending(self, root, data=None):
+        """Pasos de checklist que la serie aún no resolvió (último resultado distinto de Exitosa/No aplica)."""
+        data = data or self.data()
+        latest = OrderedDict()
+        for visit in self.series(root, data):
+            rows = [r for r in data.checklist_res if r["sesion_id"] == visit["sesion_id"]]
+            rows.sort(key=lambda r: self._orden(r.get("orden")))
+            for r in rows:
+                latest[r["item_id"]] = dict(r, visita=visit["sesion_id"], numero=visit["numero"])
+        return [r for r in latest.values() if r.get("resultado") not in S.CHECKLIST_RESUELTOS]
+
+    def series_open_work(self, root, data=None):
+        """Pruebas sin aprobar e incidencias abiertas de todas las visitas de la integración."""
+        data = data or self.data()
+        sids = {s["sesion_id"] for s in self.series(root, data)}
+        examples = self.example_sessions(data)
+        pruebas = [t for t in data.pruebas if t["sesion_id"] in sids and t.get("estado") in
+                   (S.ESTADO_FALLIDO, S.ESTADO_BLOQUEADO, S.ESTADO_PENDIENTE, "")]
+        incidencias = [i for i in data.incidencias if i["sesion_id"] in sids and i.get("estado")
+                       and i["estado"] != S.INCIDENCIA_CERRADA and not self._is_example_incident(i, examples)]
+        return {"pruebas": pruebas, "incidencias": incidencias}
+
+    def visit_checklist_items(self, tipo, root=None, data=None, include_pending=True):
+        """Ítems del checklist de una visita nueva: pendientes heredados de la serie y plantilla del tipo."""
+        data = data or self.data()
+        pending = []
+        if root and include_pending:
+            for r in self.series_pending(root, data):
+                pending.append({"id": r["item_id"], "tipo": r.get("tipo", ""), "seccion": S.SECCION_PENDIENTES,
+                                "orden": str(len(pending) + 1), "texto": r["texto"],
+                                "anterior": r.get("resultado") or "Sin marcar", "visita": r["visita"]})
+        seen = {i["id"] for i in pending}
+        return pending + [i for i in self.checklist_items(tipo, data) if i["id"] not in seen]
+
+    def followup_defaults(self, origin_sid, data=None):
+        """Valores precargados para una visita de seguimiento: datos de la última visita de la serie."""
+        data = data or self.data()
+        origin = self.get_session(origin_sid, data)
+        if origin is None:
+            return None
+        last = self.series(origin["raiz"], data)[-1]
+        values = {k: last.get(k, "") for k in S.FOLLOWUP_COPY_FIELDS}
+        now = datetime.now()
+        tipo = S.TIPO_SEGUIMIENTO if S.TIPO_SEGUIMIENTO in data.catalogos.get("tipo_prueba", []) else ""
+        values.update({"fecha": now.strftime("%Y-%m-%d"), "hora": now.strftime("%H:%M"), "tipo_prueba": tipo,
+                       "objetivo": self.objective_templates().get(tipo, ""), "sesion_origen": origin["raiz"]})
+        return values
+
+    # ------------------------------------------------------------------
     # Evidencias y carpetas de visita
     # ------------------------------------------------------------------
     def _validate_files(self, files):
@@ -479,6 +554,8 @@ class Service:
             for key in S.ID_LEGACY_FIELDS:
                 if key not in form:
                     values[key] = session.get(key, "")
+            for key in S.ID_SERIES_FIELDS:
+                values[key] = session.get(key, "")
             V.validate_session(values, data.catalogos, draft, data.ciudades, current=session)
             estado = None
             if session["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR and not draft:
@@ -777,6 +854,7 @@ class Service:
         else:
             software = (f"Versión de la máquina: {s.get('version_maquina', '')}  |  "
                         f"Gateway MDB: {s.get('version_gateway', '')}\n")
+        serie = (f"Visita {s['numero']} de la integración {s['raiz']}\n" if s.get("es_seguimiento") else "")
         pruebas = ""
         for nombre, resultado, observacion in (("MDB", "mdb_resultado", "mdb_observacion"),
                                                ("DEX", "dex_resultado", "dex_observacion")):
@@ -785,6 +863,7 @@ class Service:
                 pruebas += f"Prueba {nombre}: {s.get(resultado) or 'Sin resultado'}{detalle}\n"
         return (
             f"Resumen de visita — Sesión {sid}\n"
+            f"{serie}"
             f"Fecha de la visita: {s.get('fecha', '')}\n"
             f"Cliente / Comercio: {self.client_label(s)}\n"
             f"Máquina: {s.get('fabricante', '')} {s.get('modelo_maquina', '')} (Serial: {s.get('serial_maquina', '')})\n"

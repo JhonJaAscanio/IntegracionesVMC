@@ -8,8 +8,10 @@
     <a class="back" href="{{ url_for('main.visitas') }}"><svg class="i"><use href="#i-back"/></svg>Visitas</a>
     <h1><span class="mono">{{ s.sesion_id }}</span> {{ m.badge(s.estado_integracion) }}{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</h1>
     <p class="muted">{{ s.cliente_label or 'Cliente sin registrar' }} · {{ s.fecha or 'sin fecha' }}{% if s.hora %} {{ s.hora }}{% endif %}{% if s.ciudad or s.pais %} · {{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}{% endif %}</p>
+    {% if b.serie|length > 1 %}<p class="small"><span class="tag">Visita {{ s.numero }} de {{ b.serie|length }}</span> Integración <a class="mono" href="{{ url_for('main.visita', sid=s.raiz) }}">{{ s.raiz }}</a></p>{% endif %}
   </div>
   <div class="actions">
+    <a class="btn" href="{{ url_for('main.visita_nueva', origen=s.sesion_id) }}" title="Registrar otra visita a esta misma máquina"><svg class="i"><use href="#i-plus"/></svg>Visita de seguimiento</a>
     <a class="btn" href="{{ url_for('main.visita_editar', sid=s.sesion_id) }}"><svg class="i"><use href="#i-edit"/></svg>Editar</a>
     <a class="btn" href="{{ url_for('main.carpeta', sid=s.sesion_id) }}"><svg class="i"><use href="#i-folder"/></svg>Carpeta</a>
     <a class="btn" href="{{ url_for('main.informe', sid=s.sesion_id) }}" target="_blank" rel="noopener"><svg class="i"><use href="#i-print"/></svg>Informe</a>
@@ -28,6 +30,41 @@
 </nav>
 
 {% if tab == 'resumen' %}
+<section class="panel">
+  <div class="panel-head">
+    <h2>Visitas de esta integración</h2>
+    <a class="btn btn-sm" href="{{ url_for('main.visita_nueva', origen=s.sesion_id) }}"><svg class="i"><use href="#i-plus"/></svg>Nueva visita de seguimiento</a>
+  </div>
+  <ol class="timeline-visits">
+    {% for v in b.serie %}{% set vc = b.serie_checklist[v.sesion_id] %}
+    <li class="{{ 'current' if v.sesion_id == s.sesion_id }}">
+      <span class="tv-num">{{ v.numero }}</span>
+      <div class="tv-body">
+        <div><a class="mono" href="{{ url_for('main.visita', sid=v.sesion_id) }}">{{ v.sesion_id }}</a> · {{ v.fecha or 'sin fecha' }} · {{ v.tipo_prueba or 'Sin tipo' }} {{ m.badge(v.estado_integracion) }}{% if v.sesion_id == s.sesion_id %} <span class="tag">Esta visita</span>{% endif %}</div>
+        <div class="muted small">FW {{ v.firmware or '—' }} · Gateway {{ v.version_gateway or '—' }}{% if vc.total %} · Checklist: {{ vc.exitosas }}/{{ vc.total }} exitosos{% if vc.fallidas %}, {{ vc.fallidas }} fallidos{% endif %}{% endif %}{% if v.mdb_resultado %} · MDB {{ v.mdb_resultado }}{% endif %}{% if v.dex_resultado %} · DEX {{ v.dex_resultado }}{% endif %}</div>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% set tw = b.trabajo_serie %}
+  {% if b.pendientes_serie or tw.pruebas or tw.incidencias %}
+  <details class="more" {{ 'open' if b.serie|length > 1 }}>
+    <summary>Pendientes de la integración: {{ b.pendientes_serie|length }} paso(s) de checklist, {{ tw.pruebas|length }} prueba(s), {{ tw.incidencias|length }} incidencia(s) abierta(s)</summary>
+    {% if b.pendientes_serie %}
+    <p class="small"><strong>Checklist sin resolver</strong></p>
+    <ul class="pending-list">{% for r in b.pendientes_serie %}<li><span class="tag">{{ r.resultado or 'Sin marcar' }}</span> {{ r.texto }} <span class="muted small">({{ r.visita }})</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% if tw.pruebas %}
+    <p class="small"><strong>Casos de prueba</strong></p>
+    <ul class="pending-list">{% for t in tw.pruebas %}<li>{{ m.badge(t.estado, 'Sin estado') }} <a class="mono" href="{{ url_for('main.prueba_editar', tid=t.id) }}">{{ t.id }}</a> {{ t.objetivo|truncate(90) }} <span class="muted small">({{ t.sesion_id }})</span></li>{% endfor %}</ul>
+    {% endif %}
+    {% if tw.incidencias %}
+    <p class="small"><strong>Incidencias abiertas</strong></p>
+    <ul class="pending-list">{% for i in tw.incidencias %}<li>{{ m.badge(i.estado) }} <a class="mono" href="{{ url_for('main.incidencia_editar', iid=i.id) }}">{{ i.id }}</a> {{ i.descripcion|truncate(90) }} <span class="muted small">({{ i.sesion_id }})</span></li>{% endfor %}</ul>
+    {% endif %}
+  </details>
+  {% endif %}
+</section>
 <div class="grid-2">
   <section class="panel">
     <div class="panel-head"><h2>Equipos</h2></div>

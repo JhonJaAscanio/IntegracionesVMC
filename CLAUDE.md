@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~210 s; 82 pruebas)
+python -m pytest                    # Todas las pruebas (~240 s; 89 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -65,7 +65,7 @@ Hojas originales: `Instrucciones`, `Listas` (oculta), `Identificación y Version
 
 La migración `ensure_schema()` (idempotente, se ejecuta en cada escritura) agrega **sin modificar celdas existentes**:
 
-- Columnas al final: `País`, `Ciudad`, `Comercio / punto de venta`, `Código del fabricante`, `Nivel de la máquina`, `Versión de la máquina`, `Versión gateway MDB` y las de `Prueba MDB — …` / `Prueba DEX — …` (Identificación); `ID de prueba asociada` (Incidencias).
+- Columnas al final: `País`, `Ciudad`, `Comercio / punto de venta`, `Código del fabricante`, `Nivel de la máquina`, `Versión de la máquina`, `Versión gateway MDB`, las de `Prueba MDB — …` / `Prueba DEX — …`, `Sesión de origen` y `N.º de visita` (Identificación); `ID de prueba asociada` (Incidencias).
 - Catálogos al final de `Listas`: `País`, `Fabricante máquina`, `Ítem de revisión física`, `Cliente WPOSS` + `País del cliente`, `Ciudad` + `País de la ciudad` (pares fila a fila, `CATALOG_PAIRS`, leídos con `read_pairs`) y `Firmware NEW5320`, `Nivel de la máquina` (Nivel 1-3) y `Resultado de prueba MDB / DEX`.
 - `_replace_catalog` sustituye `País` (lista anterior de la app) y `Tipo de prueba (sesión)` (`Listas!E`, valores originales del checklist) por las listas definidas por WPOSS **solo si conservan exactamente los valores anteriores**; deja historial y `initialize()` crea un respaldo antes de guardar la migración.
 - Columna `Categoría` al final de `App_Evidencias` (si la hoja ya existía sin ella).
@@ -119,6 +119,12 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 - `S.ID_LEGACY_FIELDS` (MDB estándar/versión/módulo, versión anterior/nueva, fecha de instalación, checksum, compatibilidad) ya no están en el formulario: `update_session` conserva su valor si no llegan en el envío y `Service.legacy_fields()` los muestra cuando tienen datos. El resumen usa la línea `MDB:` original solo si la visita tiene esos campos; si no, `Versión de la máquina | Gateway MDB`, más las líneas `Prueba MDB/DEX`.
 - Categoría `Archivo DEX` → `logs/dex/` (extensión `.dex` tratada como texto).
 
+### Integraciones y visitas de seguimiento
+
+- Una integración es la serie de visitas a una misma máquina. Cada visita es una sesión completa (ID, checklist, pruebas, evidencias, cierre); las de seguimiento guardan `sesion_origen` (siempre la visita raíz, aunque se creen desde otro seguimiento) y `numero_visita` (`S.ID_SERIES_FIELDS`). Los asigna `create_session`; `update_session` nunca los toma del formulario.
+- `Service.sessions()` agrega `raiz`, `numero` y `es_seguimiento`. Métodos: `series(root)`, `series_pending(root)` (último resultado por `item_id` en la serie; pendiente si no está en `S.CHECKLIST_RESUELTOS`), `series_open_work(root)`, `followup_defaults(origen)` (copia `S.FOLLOWUP_COPY_FIELDS` de la última visita, tipo `S.TIPO_SEGUIMIENTO`) y `visit_checklist_items(tipo, root, include_pending)` (pendientes heredados en la sección `S.SECCION_PENDIENTES` + plantilla del tipo sin duplicar `item_id`).
+- Formulario: `/visitas/nueva?origen=<sid>`; campo oculto `sesion_origen`; casilla `incluir_pendientes` (checkbox `si` + hidden `no`). Ficha: panel "Visitas de esta integración" con datos de `session_bundle` (`serie`, `serie_checklist`, `pendientes_serie`, `trabajo_serie`). El resumen para correo agrega "Visita N de la integración …" solo en seguimientos.
+
 ### Checklist de integración
 
 - Plantilla por tipo de prueba en `App_Checklist` (`CHK-NNN`, sección, orden, texto, activo `Sí`/`No`). Gestión en `/checklists` (`Service.add_checklist_item`, `update_checklist_item`, `move_checklist_item`, `set_checklist_item_active`; operaciones `checklist_add_item`, `checklist_update_item`, `checklist_reorder`). Quitar un paso lo marca inactivo; nunca se borra.
@@ -143,7 +149,7 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 | Ruta | Función |
 |---|---|
 | `/` | Dashboard con filtros |
-| `/visitas`, `/visitas/nueva`, `/visitas/<sid>`, `/visitas/<sid>/editar` | Listado, alta por pasos (borrador), ficha con pestañas, edición |
+| `/visitas`, `/visitas/nueva[?origen=<sid>]`, `/visitas/<sid>`, `/visitas/<sid>/editar` | Listado, alta por pasos (borrador) o visita de seguimiento, ficha con pestañas, edición |
 | `/visitas/<sid>/revision[/iniciar]` | Revisión física y eléctrica |
 | `/pruebas`, `/pruebas/nueva`, `/pruebas/<id>/editar` | Casos de prueba |
 | `/incidencias`, `/incidencias/nueva?prueba=<id>`, `/incidencias/<id>/editar` | Incidencias (precarga desde prueba) |

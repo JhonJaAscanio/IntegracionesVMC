@@ -103,7 +103,7 @@
     {% set k = it[key_attr] %}
     {% set res = v.get('chk-' ~ k ~ '-resultado', '') %}
     <li class="chk-item{{ ' has-error' if errors.get('chk-' ~ k) }}{{ ' is-' ~ (res|estado_clase) if res }}">
-      <div class="chk-text"><span class="chk-num">{{ loop.index }}</span><span>{{ it.texto }}</span></div>
+      <div class="chk-text"><span class="chk-num">{{ loop.index }}</span><span>{{ it.texto }}{% if it.anterior %} <span class="tag" title="Último resultado en la integración">Antes: {{ it.anterior }} · {{ it.visita }}</span>{% endif %}</span></div>
       <div class="chk-controls">
         <div class="chk-options" role="radiogroup" aria-label="Resultado del paso {{ loop.index }}">
           {% for r in resultados %}

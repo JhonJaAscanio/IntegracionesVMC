@@ -143,13 +143,28 @@ def visitas():
 
 
 def _session_form_context(values=None, errors=None, sid=None):
-    data = svc().data()
-    return {"v": values or {}, "errors": errors or {}, "cat": data.catalogos, "sid": sid,
+    service = svc()
+    data = service.data()
+    values = values or {}
+    origin, pending = None, []
+    if not sid and values.get("sesion_origen"):
+        origin = service.get_session(values["sesion_origen"], data)
+        if origin:
+            pending = [i for i in service.visit_checklist_items("", origin["raiz"], data)]
+    templates = service.checklist_templates(data)
+    if pending:
+        seen = {i["id"] for i in pending}
+        templates = {tipo: [(sec, [i for i in items if i["id"] not in seen]) for sec, items in sections]
+                     for tipo, sections in templates.items()}
+        templates = {tipo: [(sec, items) for sec, items in sections if items] for tipo, sections in templates.items()}
+    return {"v": values, "errors": errors or {}, "cat": data.catalogos, "sid": sid,
+            "origin": origin, "serie": service.series(origin["raiz"], data) if origin else [],
+            "pending_items": pending,
             "upload_fields": VISIT_UPLOAD_FIELDS, "ciudades": data.ciudades,
             "clientes_pais_json": json.dumps(data.clientes_pais, ensure_ascii=False),
             "ciudades_json": json.dumps(data.ciudades, ensure_ascii=False),
             "objetivos_json": json.dumps(svc().objective_templates(), ensure_ascii=False),
-            "checklist_templates": svc().checklist_templates(data)}
+            "checklist_templates": templates}
 
 
 LOG_ACCEPT = ".log,.txt,.csv,.json,.xml,.bin,.hex,.zip,.7z"
@@ -198,8 +213,16 @@ def visita_nueva():
                 return resp
             return render_template("visita_form.html", **_session_form_context(request.form),
                                    active="nueva"), 409
-    defaults = {"fecha": datetime.now().strftime("%Y-%m-%d"), "hora": datetime.now().strftime("%H:%M"),
-                "modelo_pos": "NEW5320"}
+    origen = request.args.get("origen", "")
+    if origen:
+        if not SESSION_ID_RE.match(origen):
+            abort(404)
+        defaults = svc().followup_defaults(origen)
+        if defaults is None:
+            abort(404)
+    else:
+        defaults = {"fecha": datetime.now().strftime("%Y-%m-%d"), "hora": datetime.now().strftime("%H:%M"),
+                    "modelo_pos": "NEW5320"}
     return render_template("visita_form.html", **_session_form_context(defaults), active="nueva")
 
 

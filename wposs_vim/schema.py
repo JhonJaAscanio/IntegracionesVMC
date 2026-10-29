@@ -71,10 +71,23 @@ ID_COLUMNS = [
     ("dex_customer_id", "Prueba DEX — Customer ID"),
     ("dex_provider_id", "Prueba DEX — Provider ID"),
     ("dex_observacion", "Prueba DEX — Observaciones / error"),
+    ("sesion_origen", "Sesión de origen"),
+    ("numero_visita", "N.º de visita"),
 ]
 ID_ADDED = ["pais", "ciudad", "comercio", "codigo_fabricante", "nivel_maquina", "version_maquina",
             "version_gateway", "mdb_resultado", "mdb_observacion", "dex_resultado", "dex_archivo",
-            "dex_customer_id", "dex_provider_id", "dex_observacion"]
+            "dex_customer_id", "dex_provider_id", "dex_observacion", "sesion_origen", "numero_visita"]
+# Vínculo de la visita con su integración: los asigna el servicio, nunca el formulario de edición.
+ID_SERIES_FIELDS = ["sesion_origen", "numero_visita"]
+# Datos que se copian de la última visita de la serie al crear una visita de seguimiento.
+FOLLOWUP_COPY_FIELDS = ["responsable", "participantes", "cliente", "comercio", "pais", "ciudad", "fabricante",
+                        "modelo_maquina", "serial_maquina", "codigo_fabricante", "nivel_maquina", "modelo_pos",
+                        "serial_pos", "firmware", "version_maquina", "version_gateway", "version_financiera",
+                        "version_polaris", "configuraciones"]
+TIPO_SEGUIMIENTO = "Integración de seguimiento"
+SECCION_PENDIENTES = "Pendientes de visitas anteriores"
+# Resultados de checklist que dan un paso por resuelto en la serie.
+CHECKLIST_RESUELTOS = ["Exitosa", "No aplica"]
 # Campos del libro que el formulario ya no solicita; se conservan y se muestran si tienen datos.
 ID_LEGACY_FIELDS = ["mdb_estandar", "mdb_version", "mdb_modulo", "version_anterior", "version_nueva",
                     "fecha_instalacion", "checksum", "compatibilidad"]

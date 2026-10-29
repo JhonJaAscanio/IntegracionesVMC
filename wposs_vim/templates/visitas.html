@@ -43,7 +43,7 @@
   <tbody>
   {% for s in rows %}
     <tr data-href="{{ url_for('main.visita', sid=s.sesion_id) }}">
-      <td class="nowrap"><a class="mono" href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a>{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}</td>
+      <td class="nowrap"><a class="mono" href="{{ url_for('main.visita', sid=s.sesion_id) }}">{{ s.sesion_id }}</a>{% if s.es_ejemplo %} <span class="tag">Ejemplo</span>{% endif %}{% if s.es_seguimiento %}<div class="muted small">Visita {{ s.numero }} · {{ s.raiz }}</div>{% endif %}</td>
       <td class="nowrap">{{ s.fecha or '—' }}</td>
       <td><div class="truncate" title="{{ s.cliente_label }}">{{ s.cliente_label or '—' }}</div>
         {% if s.pais or s.ciudad %}<div class="muted small">{{ s.ciudad }}{{ ', ' if s.ciudad and s.pais }}{{ s.pais }}</div>{% endif %}</td>

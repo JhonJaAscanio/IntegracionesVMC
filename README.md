@@ -123,6 +123,21 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
   checklist, se reemplazan por los nuevos (antes se crea un respaldo y el cambio queda en
   *App_Historial*). Las visitas anteriores conservan sus valores y se pueden editar sin cambiarlos.
 
+### Visitas de seguimiento (varias visitas a la misma máquina)
+
+Una **integración** es la serie de visitas a una misma máquina: la visita de origen y sus visitas de
+seguimiento. Cada visita conserva su propio Sesión ID, fecha, checklist, pruebas, evidencias, carpeta y cierre.
+
+- En la ficha de cualquier visita, **Visita de seguimiento** abre el formulario precargado con cliente,
+  ubicación, máquina, POS y versiones de la última visita de la serie, y con el tipo *Integración de seguimiento*.
+- El checklist incluye **Pendientes de visitas anteriores**: los pasos cuyo último resultado en la serie no fue
+  Exitosa ni No aplica (se puede desmarcar *Incluir estos pasos*). Un paso que falló y luego salió bien deja de
+  aparecer en las visitas siguientes.
+- La ficha muestra **Visitas de esta integración** (línea de tiempo con tipo, estado y avance del checklist de
+  cada visita) y los pendientes de toda la serie: pasos de checklist, pruebas sin aprobar e incidencias abiertas.
+- Listados, carpeta, informe y resumen para correo indican "Visita N de la integración SES-xxx".
+- En el libro se guardan en las columnas *Sesión de origen* y *N.º de visita* de *Identificación y Versiones*.
+
 ### Checklist de la integración
 
 - El paso **5 · Checklist** de Nueva visita muestra los pasos definidos para el tipo de prueba elegido.

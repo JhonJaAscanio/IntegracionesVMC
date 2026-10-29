@@ -4,14 +4,17 @@
 {% block content %}
 <div class="page-head">
   <div>
-    {% if sid %}<a class="back" href="{{ url_for('main.visita', sid=sid) }}"><svg class="i"><use href="#i-back"/></svg>{{ sid }}</a>{% endif %}
-    <h1>{{ 'Editar identificación' if sid else 'Nueva visita' }}</h1>
-    <p class="muted">{% if sid %}Hoja “Identificación y Versiones”. Los cambios quedan en el historial.{% else %}El Sesión ID se asigna automáticamente al guardar. Puede guardar un borrador y completarlo después.{% endif %}</p>
+    {% if sid %}<a class="back" href="{{ url_for('main.visita', sid=sid) }}"><svg class="i"><use href="#i-back"/></svg>{{ sid }}</a>
+    {% elif origin %}<a class="back" href="{{ url_for('main.visita', sid=origin.sesion_id) }}"><svg class="i"><use href="#i-back"/></svg>{{ origin.sesion_id }}</a>{% endif %}
+    <h1>{{ 'Editar identificación' if sid else ('Visita de seguimiento' if origin else 'Nueva visita') }}</h1>
+    <p class="muted">{% if sid %}Hoja “Identificación y Versiones”. Los cambios quedan en el historial.{% elif origin %}Visita {{ (serie|map(attribute='numero')|max) + 1 }} de la integración <span class="mono">{{ origin.raiz }}</span> · {{ origin.cliente_label }} · {{ origin.fabricante }} {{ origin.modelo_maquina }}. Los datos de la máquina, el POS y las versiones se precargaron desde la última visita; ajústelos si cambiaron.{% else %}El Sesión ID se asigna automáticamente al guardar. Puede guardar un borrador y completarlo después.{% endif %}</p>
   </div>
 </div>
 
 <form method="post" class="form" data-stepper novalidate{% if not sid %} enctype="multipart/form-data"{% endif %}>
   {{ m.csrf() }}
+  {% if origin %}<input type="hidden" name="sesion_origen" value="{{ origin.raiz }}">{% endif %}
+  {% if errors.get('sesion_origen') %}<p class="note note-warn">{{ errors['sesion_origen'] }}</p>{% endif %}
   <ol class="steps" data-steps>
     <li><button type="button" data-step-to="0"><span>1</span>Visita</button></li>
     <li><button type="button" data-step-to="1"><span>2</span>Equipos</button></li>
@@ -104,6 +107,14 @@
   <section class="form-section" data-step>
     <h2>Checklist de la integración</h2>
     <p class="muted small">Pasos definidos para el tipo de prueba elegido. Marque el resultado de cada paso a medida que avanza; puede completarlo después desde la ficha de la visita. Los pasos se gestionan en <a href="{{ url_for('main.checklists') }}" target="_blank" rel="noopener">Checklists</a>.</p>
+    {% if pending_items %}
+    <div class="chk-block chk-pending">
+      <p class="chk-block-title"><span class="tag">Pendientes</span> {{ pending_items|length }} paso(s) sin resolver en las visitas anteriores de la integración</p>
+      <label class="check"><input type="checkbox" name="incluir_pendientes" value="si" {{ 'checked' if v.get('incluir_pendientes', 'si') != 'no' }}> Incluir estos pasos en el checklist de esta visita</label>
+      <input type="hidden" name="incluir_pendientes" value="no">
+      {{ m.checklist([(S.SECCION_PENDIENTES, pending_items)], v, errors, cat.resultado_prueba) }}
+    </div>
+    {% endif %}
     <p class="note small" data-checklist-empty>Seleccione el tipo de prueba en el paso 1 para ver su checklist.</p>
     {% for tipo, sections in checklist_templates.items() %}
     <div class="chk-block" data-checklist-for="{{ tipo }}"{% if v.get('tipo_prueba') != tipo %} hidden{% endif %}>

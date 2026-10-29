@@ -6,6 +6,10 @@
   <h2>Identificación de la visita</h2>
   <dl class="x-kv">
     <dt>Sesión ID</dt><dd>{{ s.sesion_id }}</dd>
+    {% if b.serie|length > 1 %}
+    <dt>Integración</dt><dd>Visita {{ s.numero }} de {{ b.serie|length }} · origen {{ s.raiz }}</dd>
+    <dt>Visitas de la integración</dt><dd>{% for v in b.serie %}{{ v.numero }}. {{ v.sesion_id }} ({{ v.fecha or 'sin fecha' }}, {{ v.tipo_prueba or 'sin tipo' }}, {{ v.estado_integracion }}){{ '; ' if not loop.last }}{% endfor %}</dd>
+    {% endif %}
     <dt>Fecha y hora</dt><dd>{{ s.fecha or '—' }} {{ s.hora }}</dd>
     <dt>Cliente</dt><dd>{{ s.cliente or '—' }}</dd>
     <dt>Comercio / punto de venta</dt><dd>{{ s.comercio or '—' }}</dd>

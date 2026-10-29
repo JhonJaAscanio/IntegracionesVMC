@@ -23,7 +23,7 @@
     <div class="folder-top">
       <svg class="i folder-icon"><use href="#i-folder"/></svg>
       <div class="folder-title">
-        <strong class="mono">{{ s.sesion_id }}</strong>
+        <strong class="mono">{{ s.sesion_id }}</strong>{% if s.es_seguimiento %}<span class="muted small">Visita {{ s.numero }} de {{ s.raiz }}</span>{% endif %}
         <span class="muted small">{{ s.fecha or 'sin fecha' }}</span>
       </div>
       {{ m.badge(s.estado_integracion) }}
