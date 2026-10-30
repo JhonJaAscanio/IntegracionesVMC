@@ -66,13 +66,30 @@ def test_valores_fuera_de_catalogo_rechazados(app, campo, valor, clave):
     assert clave in exc.value.errors
 
 
-def test_ciudad_debe_corresponder_al_pais(app):
+def test_ciudad_requiere_pais(app):
     with pytest.raises(ValidationError) as exc:
-        service(app).create_session({**SESSION_FORM, "pais": "Bolivia", "ciudad": "Quito"})
+        service(app).create_session({**SESSION_FORM, "pais": "", "ciudad": "Quito"})
     assert "ciudad" in exc.value.errors
     sid = service(app).create_session({**SESSION_FORM, "cliente": "ATC", "pais": "Bolivia",
-                                       "ciudad": "Santa Cruz de la Sierra"})
-    assert service(app).get_session(sid)["ciudad"] == "Santa Cruz de la Sierra"
+                                       "ciudad": "santa cruz de la sierra"})
+    assert service(app).get_session(sid)["ciudad"] == "Santa Cruz de la Sierra"  # unificada con el catálogo
+
+
+def test_ciudad_nueva_se_agrega_al_catalogo_del_pais(client, app):
+    svc = service(app)
+    antes = svc.data().ciudades
+    assert "Uyuni" not in antes.get("Bolivia", [])
+    sid = svc.create_session({**SESSION_FORM, "cliente": "ATC", "pais": "Bolivia", "ciudad": "Uyuni"})
+    assert svc.get_session(sid)["ciudad"] == "Uyuni"
+    ciudades = svc.data().ciudades
+    assert ciudades["Bolivia"].count("Uyuni") == 1
+    assert all("Uyuni" not in v for k, v in ciudades.items() if k != "Bolivia")
+    svc.create_session({**SESSION_FORM, "cliente": "ATC", "pais": "Bolivia", "ciudad": "UYUNI"})
+    assert svc.data().ciudades["Bolivia"].count("Uyuni") == 1  # sin duplicados
+    svc.update_session(sid, {**SESSION_FORM, "cliente": "ATC", "pais": "Bolivia", "ciudad": "Tupiza"})
+    assert "Tupiza" in svc.data().ciudades["Bolivia"]
+    page = client.get("/visitas/nueva").get_data(as_text=True)
+    assert 'list="dl-ciudades"' in page and '<datalist id="dl-ciudades">' in page
 
 
 def test_firmware_pendiente_de_confirmar_aceptado(app):

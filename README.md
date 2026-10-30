@@ -112,7 +112,7 @@ Las hojas originales, sus fórmulas, formatos y la hoja *Instrucciones* se conse
 | Cliente | DATAFAST, MEDIANET, ATC, PROMERICA CR | Al elegirlo se selecciona su país (DATAFAST y MEDIANET → Ecuador, ATC → Bolivia, PROMERICA CR → Costa Rica). |
 | Comercio / punto de venta | Texto libre | Nombre del comercio o ubicación de la máquina (columna nueva al final de *Identificación y Versiones*). |
 | País | Ecuador, Costa Rica, Bolivia | Carga las ciudades del país. |
-| Ciudad | Ciudades principales del país | Solo se aceptan ciudades del país elegido. |
+| Ciudad | Ciudades principales del país | Sugiere las ciudades del país elegido; si se escribe una ciudad nueva, al guardar se agrega al catálogo de ese país. |
 | Firmware NEW5320 | 13.0.11, 13.0.13, 13.0.14, 13.0.15, 13.0.17, 13.0.22 | Admite también “Pendiente de confirmar”. |
 | Tipo de prueba | Nueva Integración, Reintegración, Validación de correcciones, Integración de seguimiento | Propone el **objetivo de la sesión**, que aparece en el informe. Si el objetivo ya fue editado a mano, no se sobrescribe. |
 

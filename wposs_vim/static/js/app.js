@@ -274,20 +274,25 @@
     var map = readMap(pais, "data-city-map");
     var ciudad = document.getElementById(pais.dataset.cityTarget);
     if (!ciudad) return;
+    // La ciudad es texto libre con sugerencias (datalist) de las ciudades del país elegido.
+    var list = ciudad.list;
+    var previous = pais.value;
     pais.addEventListener("change", function () {
-      var current = ciudad.value;
       var cities = map[pais.value] || [];
-      ciudad.textContent = "";
-      var blank = document.createElement("option");
-      blank.value = "";
-      blank.textContent = pais.value ? "Seleccione…" : "Seleccione el país primero";
-      ciudad.appendChild(blank);
-      cities.forEach(function (c) {
-        var o = document.createElement("option");
-        o.value = c; o.textContent = c;
-        if (c === current) o.selected = true;
-        ciudad.appendChild(o);
-      });
+      if (list) {
+        list.textContent = "";
+        cities.forEach(function (c) {
+          var o = document.createElement("option");
+          o.value = c;
+          list.appendChild(o);
+        });
+      }
+      // Si la ciudad escrita pertenecía al país anterior, se limpia; una ciudad nueva escrita a mano se conserva.
+      var oldCities = map[previous] || [];
+      if (ciudad.value && oldCities.indexOf(ciudad.value) >= 0 && cities.indexOf(ciudad.value) < 0) {
+        ciudad.value = "";
+      }
+      previous = pais.value;
     });
   });
 

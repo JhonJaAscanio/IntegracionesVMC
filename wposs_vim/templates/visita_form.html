@@ -33,7 +33,8 @@
       {{ m.select('cliente', 'Cliente', cat.cliente, v, errors, required=True, data={'country-map': clientes_pais_json, 'country-target': 'f-pais'}) }}
       {{ m.input('comercio', 'Comercio / punto de venta', v, errors, placeholder='Ej.: nombre del comercio o ubicación de la máquina') }}
       {{ m.select('pais', 'País', cat.pais, v, errors, help='Se completa al elegir el cliente.', data={'city-map': ciudades_json, 'city-target': 'f-ciudad'}) }}
-      {{ m.select('ciudad', 'Ciudad', ciudades.get(v.get('pais', ''), []), v, errors, blank='Seleccione el país primero' if not v.get('pais') else 'Seleccione…') }}
+      {{ m.input('ciudad', 'Ciudad', v, errors, list='dl-ciudades', placeholder='Seleccione o escriba la ciudad', help='Si es una ciudad nueva se agrega al catálogo del país.') }}
+      <datalist id="dl-ciudades">{% for o in ciudades.get(v.get('pais', ''), []) %}<option value="{{ o }}">{% endfor %}</datalist>
       {{ m.select('tipo_prueba', 'Tipo de prueba', cat.tipo_prueba, v, errors, required=True, help='Al elegirlo se propone el objetivo de la sesión.', data={'objective-map': objetivos_json, 'objective-target': 'f-objetivo'}) }}
       {{ m.textarea('participantes', 'Participantes', v, errors, rows=2, help='Equipo WPOSS, cliente, técnico de la máquina…') }}
       {{ m.textarea('objetivo', 'Objetivo de la sesión', v, errors, required=True, rows=4, help='Texto propuesto según el tipo de prueba; puede ajustarlo. Aparece en el informe de la visita.') }}

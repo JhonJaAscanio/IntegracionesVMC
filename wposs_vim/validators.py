@@ -103,12 +103,10 @@ def validate_session(data, catalogs, draft, ciudades=None, current=None):
     for resultado, observacion in (("mdb_resultado", "mdb_observacion"), ("dex_resultado", "dex_observacion")):
         if data.get(resultado) == S.RESULTADO_FALLIDA and not data.get(observacion):
             errors[observacion] = "Describa el error observado en la prueba fallida."
-    if ciudades is not None and data.get("ciudad") and (
+    # Una ciudad que no está en el catálogo se acepta: el servicio la agrega al catálogo del país.
+    if ciudades is not None and data.get("ciudad") and not data.get("pais") and (
             data["ciudad"] != current.get("ciudad") or data.get("pais") != current.get("pais")):
-        if not data.get("pais"):
-            errors["ciudad"] = "Seleccione primero el país."
-        elif data["ciudad"] not in ciudades.get(data["pais"], []):
-            errors["ciudad"] = f"La ciudad no corresponde a {data['pais']}."
+        errors["ciudad"] = "Seleccione primero el país."
     if draft:
         if not any(data.get(k) for k in SESSION_FIELDS):
             errors["cliente"] = "Registre al menos un dato para guardar el borrador."

@@ -175,6 +175,19 @@ class Service:
             return [("add_catalog_value", {"catalog": catalog, "value": value})]
         return []
 
+    @staticmethod
+    def _ensure_city_ops(data, values):
+        """Una ciudad escrita a mano se unifica con la del catálogo del país (sin distinguir
+        mayúsculas) o, si es nueva, se agrega al catálogo emparejada con su país."""
+        ciudad, pais = values.get("ciudad", ""), values.get("pais", "")
+        if not ciudad or not pais:
+            return []
+        for known in data.ciudades.get(pais, []):
+            if known.casefold() == ciudad.casefold():
+                values["ciudad"] = known
+                return []
+        return [("add_catalog_value", {"catalog": "ciudad", "value": ciudad, "pair": pais})]
+
     def create_session(self, form, draft=False, files=None):
         """Crea la sesión y, en la misma escritura, registra los archivos adjuntos.
 
@@ -214,6 +227,7 @@ class Service:
             values["numero_visita"] = (max(s["numero"] for s in self.series(root, data)) + 1) if root else 1
             estado = S.ESTADO_REGISTRO_BORRADOR if draft else S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
+            ops += self._ensure_city_ops(data, values)
             ops.append(("create_session", {"sesion": values, "estado_registro": estado}))
             if checklist:
                 ops.append(("checklist_set_results", {"sesion_id": sid, "items": checklist}))
@@ -561,6 +575,7 @@ class Service:
             if session["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR and not draft:
                 estado = S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
+            ops += self._ensure_city_ops(data, values)
             ops.append(("update_session", {"sesion_id": sid, "fields": values, "estado_registro": estado}))
             self.store.write(ops, f"Edición de la sesión {sid}")
 

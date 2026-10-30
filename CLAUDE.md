@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~240 s; 89 pruebas)
+python -m pytest                    # Todas las pruebas (~240 s; 90 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -110,8 +110,9 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 
 ### Listas de la visita (definidas por WPOSS)
 
-- Cliente, país, ciudad y firmware son selects alimentados por `Listas`; `validate_session(data, catalogos, draft, ciudades, current)` exige que la ciudad pertenezca al país y acepta el valor que ya tenía el registro (`current`) aunque ya no esté en el catálogo, para no forzar cambios en visitas anteriores.
-- `Data.clientes_pais` y `Data.ciudades` alimentan los selects; el formulario recibe los mapas como JSON en atributos `data-country-map`, `data-city-map` y `data-objective-map` (`app.js`).
+- Cliente, país y firmware son selects alimentados por `Listas`; `validate_session(data, catalogos, draft, ciudades, current)` acepta el valor que ya tenía el registro (`current`) aunque ya no esté en el catálogo, para no forzar cambios en visitas anteriores.
+- Ciudad funciona como Fabricante: input con `datalist` (`dl-ciudades`, ciudades del país elegido) y texto libre. Exige país. `Service._ensure_city_ops` la unifica sin distinguir mayúsculas con la del catálogo del país o, si es nueva, agrega `add_catalog_value` con `pair` = país en la misma escritura (`create_session` y `update_session`).
+- `Data.clientes_pais` y `Data.ciudades` alimentan los selects y el datalist; el formulario recibe los mapas como JSON en atributos `data-country-map`, `data-city-map` y `data-objective-map` (`app.js`).
 - Objetivo por tipo de prueba: `config.json` → `sesiones.objetivos_por_tipo` (`Service.objective_templates`). El JS solo lo escribe si el campo está vacío o contiene otro texto de plantilla.
 - Clientes y ciudades se agregan en Configuración con su país (`add_catalog_value` con `pair`). Las columnas de país emparejadas (`CATALOGS_HIDDEN`) no se editan solas.
 - `rec["cliente_label"]` (cliente y comercio) es lo que muestran listados, carpeta e informe.
