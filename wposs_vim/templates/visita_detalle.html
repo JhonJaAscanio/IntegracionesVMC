@@ -290,6 +290,15 @@
     <button class="btn btn-sm{{ ' btn-primary' if not chk.total }}">{{ 'Cargar checklist' if not chk.total else 'Agregar pasos nuevos' }}</button>
   </form>
   {% endif %}
+  <details class="mt"{% if case_errors %} open{% endif %}>
+    <summary>Agregar casos puntuales fallidos</summary>
+    <p class="muted small">Casos concretos que fallaron o no se pudieron probar en esta máquina. Se agregan a la sección “{{ S.SECCION_CASOS_PUNTUALES }}” como fallidos y aparecen como pendientes en la siguiente visita de la integración.</p>
+    <form method="post" action="{{ url_for('main.checklist_casos', sid=s.sesion_id) }}" class="form">
+      {{ m.csrf() }}
+      {{ m.point_cases(case_values or {}, case_errors or {}) }}
+      <div class="form-actions"><div class="spacer"></div><button class="btn btn-primary">Guardar casos</button></div>
+    </form>
+  </details>
 </section>
 
 {% elif tab == 'evidencias' %}

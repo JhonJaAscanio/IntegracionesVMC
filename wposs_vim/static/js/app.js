@@ -358,4 +358,43 @@
       if (map[e.target.value]) item.classList.add(map[e.target.value]);
     });
   });
+
+  // Casos puntuales fallidos: filas caso-<n>-texto / caso-<n>-obs que se agregan y quitan.
+  document.querySelectorAll("[data-cases]").forEach(function (box) {
+    var list = box.querySelector("[data-cases-list]");
+    var tpl = box.querySelector("[data-case-template]");
+    var addBtn = box.querySelector("[data-case-add]");
+    var max = parseInt(box.dataset.max, 10) || 30;
+    var renumber = function () {
+      list.querySelectorAll("[data-case-row]").forEach(function (row, i) {
+        row.querySelectorAll("[name^='caso-']").forEach(function (el) {
+          el.name = el.name.replace(/^caso-[^-]+-/, "caso-" + (i + 1) + "-");
+        });
+      });
+      addBtn.disabled = list.children.length >= max;
+    };
+    var add = function () {
+      if (list.children.length >= max) return;
+      list.insertAdjacentHTML("beforeend", tpl.innerHTML);
+      renumber();
+      var rows = list.querySelectorAll("[data-case-row]");
+      rows[rows.length - 1].querySelector("input").focus();
+    };
+    addBtn.addEventListener("click", add);
+    list.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-case-remove]");
+      if (!btn) return;
+      var row = btn.closest("[data-case-row]");
+      if (list.children.length > 1) {
+        row.remove();
+      } else {
+        row.querySelectorAll("input, textarea").forEach(function (el) { el.value = ""; });
+        row.classList.remove("has-error");
+        var err = row.querySelector(".field-error");
+        if (err) err.remove();
+      }
+      renumber();
+    });
+    renumber();
+  });
 })();

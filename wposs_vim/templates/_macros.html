@@ -94,6 +94,30 @@
 </form>
 {%- endmacro %}
 
+{% macro point_cases(v, errors) -%}
+{# Casos puntuales fallidos: filas caso-<n>-texto / caso-<n>-obs; app.js agrega y quita filas. #}
+{% set ns = namespace(rows=[]) %}
+{% for n in range(1, S.MAX_CASOS_PUNTUALES + 1) %}{% if v.get('caso-' ~ n ~ '-texto') or v.get('caso-' ~ n ~ '-obs') %}{% set ns.rows = ns.rows + [n] %}{% endif %}{% endfor %}
+<div class="cases" data-cases data-max="{{ S.MAX_CASOS_PUNTUALES }}">
+  <ol class="cases-list" data-cases-list>
+    {% for n in (ns.rows or [1]) %}{{ point_case_row(loop.index, v.get('caso-' ~ n ~ '-texto', ''), v.get('caso-' ~ n ~ '-obs', ''), errors.get('caso-' ~ n)) }}{% endfor %}
+  </ol>
+  <template data-case-template>{{ point_case_row('__N__', '', '', None) }}</template>
+  <button type="button" class="btn btn-sm" data-case-add>Agregar caso</button>
+</div>
+{%- endmacro %}
+
+{% macro point_case_row(n, texto, obs, error) -%}
+<li class="case-row{{ ' has-error' if error }}" data-case-row>
+  <div class="case-fields">
+    <input class="case-text" name="caso-{{ n }}-texto" value="{{ texto }}" maxlength="600" placeholder="Caso o paso que falló (ej.: venta con tarjeta sin contacto en bandeja 12)" aria-label="Caso puntual">
+    <textarea class="case-obs" name="caso-{{ n }}-obs" rows="2" maxlength="4000" placeholder="Qué falló o qué error se observó" aria-label="Qué falló">{{ obs }}</textarea>
+  </div>
+  <button type="button" class="btn btn-ghost btn-sm" data-case-remove>Quitar</button>
+  {% if error %}<p class="field-error">{{ error }}</p>{% endif %}
+</li>
+{%- endmacro %}
+
 {% macro checklist(sections, v, errors, resultados, key_attr='id') -%}
 {% for seccion, items in sections %}
 <div class="chk-section">
@@ -103,7 +127,7 @@
     {% set k = it[key_attr] %}
     {% set res = v.get('chk-' ~ k ~ '-resultado', '') %}
     <li class="chk-item{{ ' has-error' if errors.get('chk-' ~ k) }}{{ ' is-' ~ (res|estado_clase) if res }}">
-      <div class="chk-text"><span class="chk-num">{{ loop.index }}</span><span>{{ it.texto }}{% if it.anterior %} <span class="tag" title="Último resultado en la integración">Antes: {{ it.anterior }} · {{ it.visita }}</span>{% endif %}</span></div>
+      <div class="chk-text"><span class="chk-num">{{ loop.index }}</span><span>{{ it.texto }}{% if it.anterior %} <span class="tag" title="Último resultado en la integración">Antes: {{ it.anterior }} · {{ it.visita }}</span>{% if it.obs_anterior %}<span class="chk-prev muted small">{{ it.obs_anterior }}</span>{% endif %}{% endif %}</span></div>
       <div class="chk-controls">
         <div class="chk-options" role="radiogroup" aria-label="Resultado del paso {{ loop.index }}">
           {% for r in resultados %}

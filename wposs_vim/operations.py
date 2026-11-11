@@ -414,7 +414,12 @@ def checklist_set_results(wb, p):
         values = {k: entry.get(k, "") for k in ("tipo", "seccion", "orden", "texto", "resultado", "observacion")}
         if rec is None:
             sh.append({"sesion_id": sid, "item_id": entry["item_id"], **values, "fecha": now})
-            if values["resultado"]:
+            if entry["item_id"].startswith(S.PREFIJO_CASO_PUNTUAL + "-"):
+                _bump_counter(wb, entry["item_id"])
+                _history(wb, "Checklist", entry["item_id"], sid, "Caso puntual registrado",
+                         {"Caso": ("", values["texto"]), "Resultado": ("", values["resultado"]),
+                          "Observación": ("", values["observacion"])})
+            elif values["resultado"]:
                 _history(wb, "Checklist", entry["item_id"], sid, "Resultado registrado",
                          {"Resultado": ("", values["resultado"])})
             continue

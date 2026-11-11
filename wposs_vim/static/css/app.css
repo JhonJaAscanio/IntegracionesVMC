@@ -443,6 +443,13 @@ h1 .badge { font-size: 12.5px; }
 .chk-item.is-neutral { border-left-color: #98a2b3; }
 .chk-item.has-error { border-color: var(--bad); }
 .chk-text { display: flex; gap: 10px; align-items: flex-start; line-height: 1.45; }
+.chk-prev { display: block; margin-top: 2px; }
+.cases-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.case-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: start; border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); }
+.case-row.has-error { border-color: var(--bad); }
+.case-row .field-error { grid-column: 1 / -1; margin: 0; }
+.case-fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.case-fields input, .case-fields textarea { width: 100%; }
 .chk-num { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--neutral-soft); color: var(--text-2); font-size: 12px; display: grid; place-items: center; margin-top: 1px; }
 .chk-controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0 0 32px; }
 .chk-options { display: flex; flex-wrap: wrap; gap: 4px; }

@@ -10,7 +10,7 @@ abrir_plataforma.bat --no-browser   # Igual, sin abrir el navegador (útil para 
 iniciar.bat                         # Windows: crea .venv (solo la primera vez) e inicia la app en consola visible
 python app.py                       # Inicia en http://127.0.0.1:5000 y abre el navegador
 python app.py --no-browser          # Inicia sin abrir el navegador
-python -m pytest                    # Todas las pruebas (~240 s; 90 pruebas)
+python -m pytest                    # Todas las pruebas (~240 s; 94 pruebas)
 python -m pytest tests/test_sesiones.py::test_02_crear_sesion   # Prueba individual
 python -m pytest -k "cierre"        # Pruebas por palabra clave
 ```
@@ -124,6 +124,7 @@ Se detectan por el texto `fila de ejemplo` (`schema.EXAMPLE_MARKER`): una sesió
 
 - Una integración es la serie de visitas a una misma máquina. Cada visita es una sesión completa (ID, checklist, pruebas, evidencias, cierre); las de seguimiento guardan `sesion_origen` (siempre la visita raíz, aunque se creen desde otro seguimiento) y `numero_visita` (`S.ID_SERIES_FIELDS`). Los asigna `create_session`; `update_session` nunca los toma del formulario.
 - `Service.sessions()` agrega `raiz`, `numero` y `es_seguimiento`. Métodos: `series(root)`, `series_pending(root)` (último resultado por `item_id` en la serie; pendiente si no está en `S.CHECKLIST_RESUELTOS`), `series_open_work(root)`, `followup_defaults(origen)` (copia `S.FOLLOWUP_COPY_FIELDS` de la última visita, tipo `S.TIPO_SEGUIMIENTO`) y `visit_checklist_items(tipo, root, include_pending)` (pendientes heredados en la sección `S.SECCION_PENDIENTES` + plantilla del tipo sin duplicar `item_id`).
+- Casos puntuales fallidos: filas `caso-<n>-texto`/`caso-<n>-obs` (macro `m.point_cases`, filas dinámicas en `app.js` con `data-cases`), leídas por `V.parse_point_cases` en `create_session`, `update_session` y `add_point_cases` (ruta `POST /visitas/<sid>/checklist/casos`). `Service._point_case_entries` las escribe con `checklist_set_results` como filas de `App_Checklist_Resultados` con `item_id` `CAS-NNN` (`S.PREFIJO_CASO_PUNTUAL`, contador en `App_Contadores`), sección `S.SECCION_CASOS_PUNTUALES` y resultado `Fallida`; por eso `series_pending` las hereda sin hojas ni columnas nuevas. `next_id` también considera `item_id` de `App_Checklist_Resultados`. Los pendientes heredados muestran la observación anterior (`obs_anterior`).
 - Formulario: `/visitas/nueva?origen=<sid>`; campo oculto `sesion_origen`; casilla `incluir_pendientes` (checkbox `si` + hidden `no`). Ficha: panel "Visitas de esta integración" con datos de `session_bundle` (`serie`, `serie_checklist`, `pendientes_serie`, `trabajo_serie`). El resumen para correo agrega "Visita N de la integración …" solo en seguimientos.
 
 ### Checklist de integración

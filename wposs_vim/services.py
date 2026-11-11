@@ -142,7 +142,8 @@ class Service:
         pattern = re.compile(rf"^{re.escape(prefix)}-(\d+)$")
         numbers = [0]
         for rows, key in ((data.sesiones, "sesion_id"), (data.pruebas, "id"),
-                          (data.incidencias, "id"), (data.evidencias, "id"), (data.checklist, "id")):
+                          (data.incidencias, "id"), (data.evidencias, "id"), (data.checklist, "id"),
+                          (data.checklist_res, "item_id")):
             for rec in rows:
                 m = pattern.match(rec.get(key, ""))
                 if m:
@@ -216,10 +217,16 @@ class Service:
                     data.catalogos.get("resultado_prueba", []))
             except ValidationError as exc:
                 errors.update(exc.errors)
+            cases = []
+            try:
+                cases = V.parse_point_cases(form)
+            except ValidationError as exc:
+                errors.update(exc.errors)
             if errors:
                 raise ValidationError(errors)
             self._validate_files(files or [])
             sid = self.next_id("SES", data)
+            checklist += self._point_case_entries(cases, values.get("tipo_prueba", ""), [], data)
             if any(s["sesion_id"] == sid for s in data.sesiones):
                 raise ConflictError("No se pudo generar un Sesión ID único.")
             values["sesion_id"] = sid
@@ -307,6 +314,38 @@ class Service:
             self.store.write([("checklist_set_results", {"sesion_id": sid, "items": entries})],
                              f"Checklist de {sid}")
 
+    def _point_case_entries(self, cases, tipo, existing, data):
+        """Resultados de checklist (Fallida) para casos puntuales, con IDs CAS-NNN consecutivos.
+
+        existing: filas de checklist que la visita ya tiene, para continuar el orden de la sección.
+        """
+        if not cases:
+            return []
+        first = int(self.next_id(S.PREFIJO_CASO_PUNTUAL, data).split("-")[1])
+        orden = max((self._orden(r.get("orden")) for r in existing
+                     if r.get("seccion") == S.SECCION_CASOS_PUNTUALES), default=0)
+        return [{"item_id": f"{S.PREFIJO_CASO_PUNTUAL}-{first + i:03d}", "tipo": tipo,
+                 "seccion": S.SECCION_CASOS_PUNTUALES, "orden": str(orden + i + 1), "texto": texto,
+                 "resultado": S.RESULTADO_FALLIDA, "observacion": observacion}
+                for i, (texto, observacion) in enumerate(cases)]
+
+    def add_point_cases(self, sid, form):
+        """Agrega a una visita casos puntuales fallidos; quedan pendientes para la siguiente visita."""
+        with self.store._lock:
+            data = self.data()
+            session = self.get_session(sid, data)
+            if session is None:
+                raise ConflictError(f"La sesión {sid} no existe.")
+            cases = V.parse_point_cases(form)
+            if not cases:
+                raise ValidationError({"caso-1": "Indique el caso o paso que falló."},
+                                      "Registre al menos un caso puntual.")
+            existing = [r for r in data.checklist_res if r["sesion_id"] == sid]
+            entries = self._point_case_entries(cases, session.get("tipo_prueba", ""), existing, data)
+            self.store.write([("checklist_set_results", {"sesion_id": sid, "items": entries})],
+                             f"Casos puntuales de {sid}")
+            return len(entries)
+
     def load_session_checklist(self, sid):
         """Agrega a la visita los ítems de la plantilla de su tipo que todavía no tiene."""
         with self.store._lock:
@@ -391,7 +430,8 @@ class Service:
         latest = OrderedDict()
         for visit in self.series(root, data):
             rows = [r for r in data.checklist_res if r["sesion_id"] == visit["sesion_id"]]
-            rows.sort(key=lambda r: self._orden(r.get("orden")))
+            sections = list(OrderedDict.fromkeys(r["seccion"] for r in rows))
+            rows.sort(key=lambda r: (sections.index(r["seccion"]), self._orden(r.get("orden"))))
             for r in rows:
                 latest[r["item_id"]] = dict(r, visita=visit["sesion_id"], numero=visit["numero"])
         return [r for r in latest.values() if r.get("resultado") not in S.CHECKLIST_RESUELTOS]
@@ -415,7 +455,8 @@ class Service:
             for r in self.series_pending(root, data):
                 pending.append({"id": r["item_id"], "tipo": r.get("tipo", ""), "seccion": S.SECCION_PENDIENTES,
                                 "orden": str(len(pending) + 1), "texto": r["texto"],
-                                "anterior": r.get("resultado") or "Sin marcar", "visita": r["visita"]})
+                                "anterior": r.get("resultado") or "Sin marcar", "visita": r["visita"],
+                                "obs_anterior": r.get("observacion", "")})
         seen = {i["id"] for i in pending}
         return pending + [i for i in self.checklist_items(tipo, data) if i["id"] not in seen]
 
@@ -570,13 +611,28 @@ class Service:
                     values[key] = session.get(key, "")
             for key in S.ID_SERIES_FIELDS:
                 values[key] = session.get(key, "")
-            V.validate_session(values, data.catalogos, draft, data.ciudades, current=session)
+            errors = {}
+            try:
+                V.validate_session(values, data.catalogos, draft, data.ciudades, current=session)
+            except ValidationError as exc:
+                errors.update(exc.errors)
+            cases = []
+            try:
+                cases = V.parse_point_cases(form)
+            except ValidationError as exc:
+                errors.update(exc.errors)
+            if errors:
+                raise ValidationError(errors)
             estado = None
             if session["estado_registro"] == S.ESTADO_REGISTRO_BORRADOR and not draft:
                 estado = S.ESTADO_REGISTRO_EN_CURSO
             ops = self._ensure_catalog_ops(data, "fabricante", values.get("fabricante"))
             ops += self._ensure_city_ops(data, values)
             ops.append(("update_session", {"sesion_id": sid, "fields": values, "estado_registro": estado}))
+            existing = [r for r in data.checklist_res if r["sesion_id"] == sid]
+            entries = self._point_case_entries(cases, values.get("tipo_prueba", ""), existing, data)
+            if entries:
+                ops.append(("checklist_set_results", {"sesion_id": sid, "items": entries}))
             self.store.write(ops, f"Edición de la sesión {sid}")
 
     # ------------------------------------------------------------------

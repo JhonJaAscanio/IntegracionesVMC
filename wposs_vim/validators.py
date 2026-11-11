@@ -182,6 +182,30 @@ def validate_checklist_item(data, tipos):
     return data
 
 
+def parse_point_cases(form):
+    """Lee los casos puntuales fallidos del formulario (caso-<n>-texto y caso-<n>-obs).
+
+    Las filas vacías se ignoran; un caso exige descripción y qué falló.
+    Devuelve [(texto, observación)] en el orden del formulario.
+    """
+    cases, errors = [], {}
+    for n in range(1, S.MAX_CASOS_PUNTUALES + 1):
+        texto = (form.get(f"caso-{n}-texto") or "").strip()
+        observacion = (form.get(f"caso-{n}-obs") or "").replace("\r\n", "\n").strip()
+        if not texto and not observacion:
+            continue
+        if not texto:
+            errors[f"caso-{n}"] = "Indique el caso o paso que falló."
+        elif not observacion:
+            errors[f"caso-{n}"] = "Describa qué falló en este caso."
+        elif len(texto) > 600 or len(observacion) > MAX_TEXT:
+            errors[f"caso-{n}"] = f"Máximo 600 caracteres en el caso y {MAX_TEXT} en la observación."
+        cases.append((texto, observacion))
+    if errors:
+        raise ValidationError(errors, "Revise los casos puntuales: cada caso requiere descripción y qué falló.")
+    return cases
+
+
 def parse_checklist_results(form, items, resultados):
     """Lee del formulario el resultado y la observación de cada ítem del checklist.
 

@@ -86,6 +86,11 @@ FOLLOWUP_COPY_FIELDS = ["responsable", "participantes", "cliente", "comercio", "
                         "version_polaris", "configuraciones"]
 TIPO_SEGUIMIENTO = "Integración de seguimiento"
 SECCION_PENDIENTES = "Pendientes de visitas anteriores"
+# Casos puntuales fallidos: pasos del checklist propios de una visita (App_Checklist_Resultados) que
+# quedan como Fallida y por eso se heredan como pendientes en la siguiente visita de la integración.
+SECCION_CASOS_PUNTUALES = "Casos puntuales"
+PREFIJO_CASO_PUNTUAL = "CAS"
+MAX_CASOS_PUNTUALES = 30
 # Resultados de checklist que dan un paso por resuelto en la serie.
 CHECKLIST_RESUELTOS = ["Exitosa", "No aplica"]
 # Campos del libro que el formulario ya no solicita; se conservan y se muestran si tienen datos.

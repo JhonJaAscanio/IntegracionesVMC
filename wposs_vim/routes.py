@@ -250,7 +250,7 @@ def visita_editar(sid):
 
 
 @bp.route("/visitas/<sid>")
-def visita(sid, tab=None, chk_values=None, chk_errors=None):
+def visita(sid, tab=None, chk_values=None, chk_errors=None, case_values=None, case_errors=None):
     _session_or_404(sid)
     service = svc()
     bundle = service.session_bundle(sid)
@@ -261,7 +261,7 @@ def visita(sid, tab=None, chk_values=None, chk_errors=None):
                            record_types=RECORD_TYPES, upload_categories=UPLOAD_CATEGORIES,
                            legacy_fields=service.legacy_fields(bundle["sesion"]),
                            chk_values=chk_values if chk_values is not None else _checklist_values(bundle["checklist"]),
-                           chk_errors=chk_errors or {},
+                           chk_errors=chk_errors or {}, case_values=case_values, case_errors=case_errors,
                            chk_missing=service.missing_checklist_items(sid, data), active="visitas")
 
 
@@ -285,6 +285,23 @@ def checklist_guardar(sid):
     except ValidationError as exc:
         flash(exc.message, "error")
         return visita(sid, tab="checklist", chk_values=request.form, chk_errors=exc.errors), 422
+    except StoreError as exc:
+        resp = _write_errors(exc, back)
+        if resp:
+            return resp
+    return redirect(back)
+
+
+@bp.route("/visitas/<sid>/checklist/casos", methods=["POST"])
+def checklist_casos(sid):
+    _session_or_404(sid)
+    back = url_for("main.visita", sid=sid, tab="checklist")
+    try:
+        n = svc().add_point_cases(sid, request.form)
+        flash(f"Se registraron {n} caso(s) puntual(es) fallido(s); quedan pendientes para la siguiente visita.", "ok")
+    except ValidationError as exc:
+        flash(exc.message, "error")
+        return visita(sid, tab="checklist", case_values=request.form, case_errors=exc.errors), 422
     except StoreError as exc:
         resp = _write_errors(exc, back)
         if resp:

@@ -97,6 +97,11 @@
       </div>
     </fieldset>
     <fieldset class="subsection">
+      <legend>Casos puntuales fallidos</legend>
+      <p class="muted small">Opcional. Registre los casos concretos que fallaron o no se pudieron probar en esta máquina. Quedan como pasos fallidos en el checklist de la visita y aparecen como pendientes en la siguiente visita de la integración, donde se verifica si se superó el inconveniente.{% if sid %} Los casos ya registrados se gestionan en la pestaña Checklist de la visita; aquí solo se agregan nuevos.{% endif %}</p>
+      {{ m.point_cases(v, errors) }}
+    </fieldset>
+    <fieldset class="subsection">
       <legend>Observaciones generales</legend>
       <div class="form-grid">
         {{ m.textarea('observaciones', 'Observaciones', v, errors, rows=3) }}

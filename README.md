@@ -133,6 +133,11 @@ seguimiento. Cada visita conserva su propio Sesión ID, fecha, checklist, prueba
 - El checklist incluye **Pendientes de visitas anteriores**: los pasos cuyo último resultado en la serie no fue
   Exitosa ni No aplica (se puede desmarcar *Incluir estos pasos*). Un paso que falló y luego salió bien deja de
   aparecer en las visitas siguientes.
+- **Casos puntuales fallidos**: en el paso 4 (Pruebas MDB y DEX) de Nueva visita o Editar, y en la pestaña
+  **Checklist** de la ficha (*Agregar casos puntuales fallidos*), se registran casos concretos que fallaron o no
+  se pudieron probar en esa máquina (caso y qué falló, ambos obligatorios). Quedan en la sección *Casos puntuales*
+  del checklist de la visita como Fallida (IDs `CAS-NNN`) y la siguiente visita los hereda como pendientes, con lo
+  que falló, para marcar si se superó el inconveniente.
 - La ficha muestra **Visitas de esta integración** (línea de tiempo con tipo, estado y avance del checklist de
   cada visita) y los pendientes de toda la serie: pasos de checklist, pruebas sin aprobar e incidencias abiertas.
 - Listados, carpeta, informe y resumen para correo indican "Visita N de la integración SES-xxx".
